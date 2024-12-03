@@ -1,4 +1,4 @@
 #!/bin/bash
 source config.sh
 
-docker build -t $IMAGE_NAME .
+DOCKER_BUILDKIT=0 docker build -t $IMAGE_NAME .

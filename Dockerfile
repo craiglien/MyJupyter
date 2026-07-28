@@ -1,5 +1,29 @@
 # Set Version
 ARG UBUNTU_VERSION=24.04
+
+# Build Stockfish from source for whatever architecture this stage runs on,
+# instead of shipping a pre-built x86-64 binary that fails with "exec format
+# error" on arm64 hosts (e.g. Apple Silicon).
+FROM ubuntu:${UBUNTU_VERSION} AS stockfish-build
+
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        curl && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY stockfish/src /build/src
+WORKDIR /build/src
+# The vendored source tree doesn't include scripts/get_native_properties.sh,
+# so ARCH=native can't self-detect; pick a safe baseline per CPU family
+# instead (matches what the official generic x86-64/arm64 releases use).
+RUN case "$(uname -m)" in \
+        x86_64) ARCH=x86-64 ;; \
+        aarch64|arm64) ARCH=armv8 ;; \
+        *) echo "Unsupported build architecture: $(uname -m)" >&2; exit 1 ;; \
+    esac && \
+    make -j"$(nproc)" build ARCH="$ARCH"
+
 # Start with the latest Ubuntu base image
 FROM ubuntu:${UBUNTU_VERSION}
 
@@ -44,7 +68,7 @@ RUN pip install "httpx<0.24"
 
 RUN pip install --prefer-binary chess
 
-COPY stockfish-ubuntu-x86-64 /usr/bin/stockfish
+COPY --from=stockfish-build /build/src/stockfish /usr/bin/stockfish
 
 WORKDIR /app
 

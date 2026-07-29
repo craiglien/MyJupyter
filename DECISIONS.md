@@ -38,3 +38,25 @@ A stray `CLAUDE.md` pointer file (referencing `CONTEXT.md`, `GUARDRAIL.loc.md`,
 repo root. Confirmed with the user it wasn't intentional for this project; they deleted
 it. This project uses the plain four-file bootstrap from `~/.claude/CLAUDE.md`
 (`CLAUDE.md`/`TASKS.md`/`DECISIONS.md`/`IDEAS.md`) instead.
+
+## Deepen reply-move explanations with Idea 1 + Idea 2; defer Idea 3
+Status: DECIDED
+
+`moves()`'s "Engine expects the reply X" line was too shallow — no explanation of what
+that reply does or why the engine expects it over the opponent's other options. Three
+options were considered (see `IDEAS.md`), ordered by cost:
+
+1. Classify the reply (and the move after it) using the existing `classify_move()`
+   machinery, reusing data already in the principal variation — free, no extra engine
+   calls, but only describes move type (capture/check/quiet), not comparative reasoning.
+2. A new opt-in function that recurses the `moves()` ranking-table-plus-narrative
+   approach one ply deeper — a fresh multipv call on the position after a chosen
+   candidate move, ranking the opponent's replies against each other the same way we
+   rank our own candidates. This is the real "why," at the cost of an extra engine call
+   per invocation.
+3. Chain idea 2 again for our follow-up move after their reply — a small explained
+   game-tree. Cost compounds per hop (another multipv call each time).
+
+Decision: build 1 (as a default upgrade to `moves()`) and 2 (as a new on-demand
+function, not automatic for all 5 candidates, to keep engine time bounded). Idea 3 stays
+in `IDEAS.md` as a future on-demand extension, not built now.

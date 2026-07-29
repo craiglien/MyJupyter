@@ -32,6 +32,9 @@ and a locally-built Stockfish engine.
   unclear — see `TASKS.md`).
 - `./notebooks` (mounted to `/app`) — the actual notebook files, e.g. `Chess.ipynb`,
   which drives Stockfish via `notebooks/cc.py` (`stockfish_path = "/usr/bin/stockfish"`).
+  `cc.py` is versioned via its own `__ver__` constant (printed on import) — bump it on
+  notable behavior changes. Git log / `DECISIONS.md` cover the *why*; there's no separate
+  changelog file.
 
 ## Hard constraints
 - Never commit a pre-built, architecture-specific Stockfish binary directly (that's the bug

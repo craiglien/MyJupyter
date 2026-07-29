@@ -6,7 +6,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = .9
+__ver__ = 1.0
 print(f"cc ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -185,83 +185,132 @@ def describe_score(score):
     return score_text, eval_text
 
 
+def _analyze(root_board, multipv=5, time_limit=2.0):
+    """Run one multipv analysis pass. Shared by moves() and explain_reply()
+    so both go through the same engine-invocation path."""
+    with chess.engine.SimpleEngine.popen_uci(stockfish_path) as engine:
+        return engine.analyse(root_board, chess.engine.Limit(time=time_limit), multipv=multipv)
+
+
+def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
+    """Describe up to `max_extra_plies` further plies of a principal
+    variation (the reply, and possibly the move after that), each with a
+    short reason via classify_move()/describe_move_reason(). Reuses data
+    already in the PV — no extra engine calls."""
+    lines = []
+    walk_board = board_after_move.copy()
+    for i, mv in enumerate(pv_rest[:max_extra_plies]):
+        mover = "White" if walk_board.turn == chess.WHITE else "Black"
+        san = walk_board.san(mv)
+        reason = " ".join(describe_move_reason(classify_move(walk_board, mv)))
+        if i == 0:
+            lines.append(f"Engine expects {mover}'s reply {san} — {reason}")
+        else:
+            lines.append(f"Then {mover} likely continues with {san} — {reason}")
+        walk_board.push(mv)
+    return lines
+
+
+def _display_ranked_moves(root_board, info, user, header):
+    """Summary table + per-candidate detail blocks with comparative
+    ranking, for whichever position `info` was analyzed from. Shared by
+    moves() (the position on the board) and explain_reply() (the position
+    after a candidate move, one ply deeper)."""
+    best_score = info[0]["score"].relative
+
+    # Precompute per-candidate facts once, shared by the summary table
+    # and the detailed blocks below.
+    candidates = []
+    for move_info in info:
+        move = move_info["pv"][0]
+        score = move_info["score"].relative
+        san = root_board.san(move)
+        class_info = classify_move(root_board, move)
+        score_text, eval_text = describe_score(score)
+        gap_text, gap_note = describe_gap(best_score, score)
+        candidates.append({
+            "move_info": move_info, "move": move, "score": score, "san": san,
+            "class_info": class_info, "score_text": score_text, "eval_text": eval_text,
+            "gap_text": gap_text, "gap_note": gap_note,
+        })
+
+    # Summary table: scan all candidates and their ranking at a glance.
+    rows = "".join(
+        f"<tr><td>{idx}</td><td>{c['san']}</td><td>{c['score_text']}</td>"
+        f"<td>{c['gap_text']}</td><td>{move_tag(c['class_info'])}</td></tr>"
+        for idx, c in enumerate(candidates, start=1)
+    )
+    table_html = f"""
+    <table border="1" cellpadding="6" style="border-collapse: collapse; font-size: 15px;">
+    <tr><th>Rank</th><th>Move</th><th>Score</th><th>Gap vs best</th><th>Type</th></tr>
+    {rows}
+    </table>"""
+    display(HTML(table_html))
+
+    print(f"\n{header}")
+    for idx, c in enumerate(candidates, start=1):
+        move, pv = c["move"], c["move_info"]["pv"]
+
+        temp_board = root_board.copy()
+        temp_board.push(move)
+
+        svg_move = chess.svg.board(temp_board, arrows=[(move.from_square, move.to_square)],
+                                    size=300, orientation=user, lastmove=move)
+
+        reasons = describe_move_reason(c["class_info"])
+        rank_note = "This is the engine's top choice." if idx == 1 \
+            else f"{c['gap_note']} (Gap vs best: {c['gap_text']})"
+
+        continuation_lines = _describe_continuation(temp_board, pv[1:], max_extra_plies=2)
+
+        mv_out = f"{idx}. {c['san']} ({move.uci()}) &mdash; {c['score_text']}"
+        detail_lines = [f"Eval: {c['eval_text']}", "<br>".join(reasons), rank_note] + continuation_lines
+        detail_out = "<hr>".join(detail_lines)
+
+        html_content = f"""
+        <div style="display: flex; align-items: center;">
+        <div>{svg_move}</div>
+        <div style="margin-left: 20px; font-size: 16px;">{mv_out}<hr>{detail_out}</div>
+        </div>"""
+
+        display(HTML(html_content))
+
+    return info
+
+
 def moves(board, show=True):
     """Show the top candidate moves for `board`, ranked and compared
     against each other, with an explanation for each. Returns the engine's
     raw multipv analysis so a specific candidate's continuation can be
-    inspected further with explain_line()."""
+    inspected further with explain_line() or explain_reply()."""
     user = board.user
     root_board = board.board
 
-    # Start the Stockfish engine
-    with chess.engine.SimpleEngine.popen_uci(stockfish_path) as engine:
+    info = _analyze(root_board, multipv=5, time_limit=2.0)
+    return _display_ranked_moves(root_board, info, user, header=f"Top {len(info)} Moves:")
 
-        # Analyze the board for a certain amount of time (e.g., 2 seconds)
-        info = engine.analyse(root_board, chess.engine.Limit(time=2.0), multipv=5)
-        best_score = info[0]["score"].relative
 
-        # Precompute per-candidate facts once, shared by the summary table
-        # and the detailed blocks below.
-        candidates = []
-        for move_info in info:
-            move = move_info["pv"][0]
-            score = move_info["score"].relative
-            san = root_board.san(move)
-            class_info = classify_move(root_board, move)
-            score_text, eval_text = describe_score(score)
-            gap_text, gap_note = describe_gap(best_score, score)
-            candidates.append({
-                "move_info": move_info, "move": move, "score": score, "san": san,
-                "class_info": class_info, "score_text": score_text, "eval_text": eval_text,
-                "gap_text": gap_text, "gap_note": gap_note,
-            })
+def explain_reply(board, info, candidate=1, multipv=3, time_limit=1.0):
+    """Explain WHY the engine expects a given reply, by analyzing the
+    position after candidate move `candidate` (1-indexed, matching the
+    numbering from moves()) and ranking the opponent's own options against
+    each other — the same way moves() ranks ours. This makes a fresh
+    engine call, one ply deeper than `info`. Returns that analysis, so
+    calling explain_reply() again on it (with a board built from the
+    resulting position) goes another ply deeper."""
+    user = board.user
+    root_board = board.board
 
-        # Summary table: scan all candidates and their ranking at a glance.
-        rows = "".join(
-            f"<tr><td>{idx}</td><td>{c['san']}</td><td>{c['score_text']}</td>"
-            f"<td>{c['gap_text']}</td><td>{move_tag(c['class_info'])}</td></tr>"
-            for idx, c in enumerate(candidates, start=1)
-        )
-        table_html = f"""
-        <table border="1" cellpadding="6" style="border-collapse: collapse; font-size: 15px;">
-        <tr><th>Rank</th><th>Move</th><th>Score</th><th>Gap vs best</th><th>Type</th></tr>
-        {rows}
-        </table>"""
-        display(HTML(table_html))
+    move = info[candidate - 1]["pv"][0]
+    reply_board = root_board.copy()
+    reply_board.push(move)
 
-        print(f"\nTop {len(info)} Moves:")
-        for idx, c in enumerate(candidates, start=1):
-            move, pv = c["move"], c["move_info"]["pv"]
+    mover_label = "White" if reply_board.turn == chess.WHITE else "Black"
+    print(f"\nAfter {root_board.san(move)}, it's {mover_label}'s move:")
 
-            temp_board = root_board.copy()
-            temp_board.push(move)
-
-            svg_move = chess.svg.board(temp_board, arrows=[(move.from_square, move.to_square)],
-                                        size=300, orientation=user, lastmove=move)
-
-            reasons = describe_move_reason(c["class_info"])
-            rank_note = "This is the engine's top choice." if idx == 1 \
-                else f"{c['gap_note']} (Gap vs best: {c['gap_text']})"
-
-            reply_note = None
-            if len(pv) >= 2:
-                reply_note = f"Engine expects the reply {temp_board.san(pv[1])}."
-
-            mv_out = f"{idx}. {c['san']} ({move.uci()}) &mdash; {c['score_text']}"
-            detail_lines = [f"Eval: {c['eval_text']}", "<br>".join(reasons), rank_note]
-            if reply_note:
-                detail_lines.append(reply_note)
-            detail_out = "<hr>".join(detail_lines)
-
-            html_content = f"""
-            <div style="display: flex; align-items: center;">
-            <div>{svg_move}</div>
-            <div style="margin-left: 20px; font-size: 16px;">{mv_out}<hr>{detail_out}</div>
-            </div>"""
-
-            display(HTML(html_content))
-
-        return info
+    reply_info = _analyze(reply_board, multipv=multipv, time_limit=time_limit)
+    return _display_ranked_moves(reply_board, reply_info, user,
+                                  header=f"Top {len(reply_info)} Replies for {mover_label}:")
 
 
 def explain_line(board, info, candidate=1, plies=4):

@@ -6,7 +6,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = 1.0
+__ver__ = "0.0.0"
 print(f"cc ver {__ver__}")
 
 # Path to your Stockfish executable

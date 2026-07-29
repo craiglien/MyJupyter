@@ -60,3 +60,13 @@ options were considered (see `IDEAS.md`), ordered by cost:
 Decision: build 1 (as a default upgrade to `moves()`) and 2 (as a new on-demand
 function, not automatic for all 5 candidates, to keep engine time bounded). Idea 3 stays
 in `IDEAS.md` as a future on-demand extension, not built now.
+
+## Switch cc.py's __ver__ to semantic versioning, reset baseline to 0.0.0
+Status: DECIDED
+
+`__ver__` had been an informal float (`0.9`, then `1.0`) bumped on "notable changes" —
+no real rule for what counted as notable, so the number carried no information about
+whether a change was safe to pull into an existing notebook session. Switched `__ver__`
+to a semver string and reset it to `0.0.0` as the new baseline: MAJOR for breaking
+changes to a function's signature/behavior, MINOR for new backwards-compatible
+functions/features, PATCH for bug fixes only. See `CLAUDE.md`.

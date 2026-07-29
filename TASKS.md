@@ -1,7 +1,11 @@
 # TASKS.md
 
 ## Active
-(none)
+- Implement Idea 1: explain the opponent's expected reply (and the follow-up move) using
+  `classify_move()`, instead of showing a bare SAN string. See `IDEAS.md` / `DECISIONS.md`.
+- Implement Idea 2: new opt-in function that recurses the `moves()` ranking-table-plus-
+  narrative approach one ply deeper, to explain *why* the engine expects that particular
+  reply rather than the opponent's alternatives. See `IDEAS.md` / `DECISIONS.md`.
 
 ## Up next
 (none — waiting on feature requests)

@@ -70,3 +70,22 @@ whether a change was safe to pull into an existing notebook session. Switched `_
 to a semver string and reset it to `0.0.0` as the new baseline: MAJOR for breaking
 changes to a function's signature/behavior, MINOR for new backwards-compatible
 functions/features, PATCH for bug fixes only. See `CLAUDE.md`.
+
+## Strip notebook outputs on commit via nbstripout, instead of gitignoring Chess.ipynb
+Status: DECIDED
+
+`notebooks/Chess.ipynb` kept showing modified after every run, even with no real edits,
+because Jupyter stores cell outputs (execution counts, printed text, rendered SVG boards)
+inline in the `.ipynb` JSON. A `git diff` mixed real source edits together with pure
+output noise, making the diff unreadable and the file effectively uncommittable without
+manually separating the two.
+
+Considered gitignoring the file outright, but that would also throw away real source
+edits (which FEN/position is being tested, which functions are called) — not just the
+noise. Instead installed `nbstripout` (via `uv tool install nbstripout`, since it's a
+git-hook CLI, not a project runtime dependency) and registered it as a git clean filter
+via `nbstripout --install --attributes .gitattributes`, so outputs are stripped
+automatically whenever a notebook is staged. `.gitattributes` (committed, shareable)
+declares which files use the filter; each clone still needs to run
+`nbstripout --install` once locally to register the actual filter command, since git
+filters can't be fully defined in a committed file.

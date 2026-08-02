@@ -118,3 +118,31 @@ small post-processing helper, `_pieces_over_arrows()`, that moves the arrow `<li
 `<polygon>` elements (found via a regex on `class="arrow"`) to just before the first
 piece `<use>` element in the returned SVG string — pieces render on top, the arrow still
 shows as a trail leading into the square. Bumped `cc.py` to `0.0.1` (PATCH, bug fix only).
+
+## Clean up cc.py before debugging the game-analysis notebook
+Status: DECIDED
+
+Audited `cc.py` for bugs before relying on it further from `gac.py`/`Game.ipynb`. Found
+and fixed four issues, all PATCH-level (bug fixes / cleanup, no new features, no breaking
+signature changes):
+
+- `moves(board, show=True)`'s `show` parameter did nothing — `_display_ranked_moves()`
+  always displayed regardless. Wired it through (`show=False` now genuinely suppresses
+  the table/board/print output while still returning the raw `info`) rather than removing
+  the parameter, to keep the signature backwards-compatible.
+- Calling `_display_ranked_moves()` (via `moves()` or `explain_reply()`) on a position
+  with no legal moves crashed with `KeyError` — confirmed empirically that
+  `engine.analyse()` on a checkmate/stalemate position returns a result dict with no
+  `'pv'` key at all. Added an `is_game_over()` guard that prints "Checkmate — no moves to
+  analyze." (or Stalemate/Game over) and returns `info` instead of crashing. Not currently
+  reachable through `gac.py`'s own call paths (critical-moment drill-down only ever
+  analyzes the position *before* a flagged move), but a real landmine for direct callers.
+- `get_color()` silently returned the string `'invalid'` for unrecognized input instead of
+  raising — a typo'd color argument would quietly produce wrong board orientation later
+  instead of failing where the mistake was made. Now raises `ValueError`.
+- `pgn()` was full of leftover debug prints (`print(dir(gm))`, printing the board after
+  every pushed move, `print(dir(bd))`) — removed; behavior unchanged.
+
+Bumped `cc.py` to `0.0.2`. Verified via a script exercising all four fixes plus a
+`gac.py` regression run (checked `gac.py` still imports and runs cleanly against the
+updated `cc.py`).

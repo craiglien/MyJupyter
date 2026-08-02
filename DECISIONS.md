@@ -164,3 +164,22 @@ engine suggests instead," so a correct alternative reads as a wrong replay. Fixe
 rewriting `show_critical_moments()`'s print output to state the actually-played move
 explicitly and label the candidate list "NOT a replay of your game" before showing it,
 rather than changing the underlying analysis.
+
+## Let critical moments be explored further, instead of a dead end
+Status: DECIDED
+
+Once `show_critical_moments()` showed the engine's suggested alternative at a critical
+moment, that was it — there was no way to keep going down that alternate line. `cc.py`
+already has exactly the tool for this (`explain_reply(board, info, candidate)`, which goes
+one ply deeper along a candidate), but `gac.py` discarded the `board`/`info` it used for
+each critical moment instead of handing them back.
+
+Changed `show_critical_moments()` to return a list of `{"record", "board", "info"}` dicts
+— one per critical moment shown — so any of them can be passed straight into
+`cc.explain_reply()` or `cc.explain_line()` to keep exploring. `analyze_game()`'s return
+changed from `records` alone to `(records, critical)` to expose this. Verified by chaining
+`cc.explain_reply(critical[0]["board"], critical[0]["info"], candidate=1)` after
+`analyze_game()` and confirming it correctly analyzed one ply deeper. Updated
+`Game.ipynb`'s third cell for the new return shape and added a commented-out example cell
+showing the chained-exploration call. Bumped `gac.py` to `0.1.0` (MINOR — new capability;
+not yet committed anywhere, so no prior callers to break).

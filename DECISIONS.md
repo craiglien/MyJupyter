@@ -146,3 +146,21 @@ signature changes):
 Bumped `cc.py` to `0.0.2`. Verified via a script exercising all four fixes plus a
 `gac.py` regression run (checked `gac.py` still imports and runs cleanly against the
 updated `cc.py`).
+
+## Label critical-moment boards as alternatives, not a replay of the game
+Status: DECIDED
+
+Reported as a bug: testing `gac.py` against `1. e4 d5 2. Nc3 Nf6 3. Bd3`, a critical-moment
+board showed "1. exd5 (e4d5) — +0.70" — read as the notebook getting the game wrong (e4 and
+d5 were both actually played as separate, non-capturing pawn moves). Traced it: this is not
+a computation bug. `show_critical_moments()`'s board is the engine's own top candidate at
+the position *before* the flagged move — genuinely `exd5` there — not a rendering of what
+was actually played. Confirmed by walking the exact PGN through `sweep_game()` and
+`cc.moves()` directly: every candidate returned was a legal, correctly-ranked move at that
+position.
+
+The real problem is presentation: nothing distinguished "what you played" from "what the
+engine suggests instead," so a correct alternative reads as a wrong replay. Fixed by
+rewriting `show_critical_moments()`'s print output to state the actually-played move
+explicitly and label the candidate list "NOT a replay of your game" before showing it,
+rather than changing the underlying analysis.

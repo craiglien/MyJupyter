@@ -89,3 +89,12 @@ automatically whenever a notebook is staged. `.gitattributes` (committed, sharea
 declares which files use the filter; each clone still needs to run
 `nbstripout --install` once locally to register the actual filter command, since git
 filters can't be fully defined in a committed file.
+
+## Name the whole-game analysis module gac.py, not gc.py
+Status: DECIDED
+
+The planned module name `gc.py` turned out to be unusable: `gc` is a module compiled
+directly into the Python interpreter (`sys.builtin_module_names`), so `import gc` always
+resolves to Python's own garbage collector regardless of `sys.path` order — confirmed by
+testing (a script doing `sys.path.insert(0, "/app"); import gc` still got the builtin, not
+`notebooks/gc.py`). Renamed to `gac.py` before writing any more code against the old name.

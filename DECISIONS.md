@@ -98,3 +98,23 @@ directly into the Python interpreter (`sys.builtin_module_names`), so `import gc
 resolves to Python's own garbage collector regardless of `sys.path` order — confirmed by
 testing (a script doing `sys.path.insert(0, "/app"); import gc` still got the builtin, not
 `notebooks/gc.py`). Renamed to `gac.py` before writing any more code against the old name.
+
+## Draw pieces on top of move arrows in cc.py's board rendering
+Status: DECIDED
+
+`_display_ranked_moves()`'s candidate boards draw an arrow from the move's origin to
+destination square, but `chess.svg.board()` emits the arrow's SVG elements after (so
+visually on top of) the piece elements. For a short move — mainly knight hops, since a
+knight's destination is close to its origin relative to its visual footprint — the
+arrowhead polygon lands almost entirely on top of the piece that just moved there, making
+it look like it was never drawn. Found while testing `gac.py`'s critical-moment
+drill-down against `1. e4 d5 2. Nc3 Nf6 3. Bd3`, where the engine's suggested alternative
+at White's 3rd move was itself a knight move; the bug is in shared rendering code, not
+specific to `gac.py`, and affects `cc.moves()` in `Chess.ipynb` equally, just less
+noticeably since knight-move candidates come up less consistently there.
+
+`chess.svg.board()` has no built-in option to reorder or shrink the arrow. Fixed with a
+small post-processing helper, `_pieces_over_arrows()`, that moves the arrow `<line>`/
+`<polygon>` elements (found via a regex on `class="arrow"`) to just before the first
+piece `<use>` element in the returned SVG string — pieces render on top, the arrow still
+shows as a trail leading into the square. Bumped `cc.py` to `0.0.1` (PATCH, bug fix only).

@@ -1,4 +1,5 @@
 import io
+import re
 
 import chess
 import chess.engine
@@ -6,7 +7,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.0.0"
+__ver__ = "0.0.2"
 print(f"cc ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -18,7 +19,7 @@ def get_color(color):
     elif color.lower().startswith('w'):
         return chess.WHITE
     else:
-        return 'invalid'
+        raise ValueError(f"Unrecognized color {color!r}; expected something starting with 'w' or 'b'")
 
 
 class CCBoard:
@@ -33,18 +34,9 @@ class CCBoard:
 def pgn(pgn, user):
     pgn_file = io.StringIO(pgn)
     gm = chess.pgn.read_game(pgn_file)
-    print(gm)
-    print(dir(gm))
-    print(type(gm.board))
     bd = gm.board()
-    print(bd)
     for m in gm.mainline_moves():
-        print(m)
         bd.push(m)
-        print(bd)
-    print(bd)
-    print(type(bd))
-    print(dir(bd))
     return CCBoard(bd.fen(), user)
 
 
@@ -185,6 +177,21 @@ def describe_score(score):
     return score_text, eval_text
 
 
+def _pieces_over_arrows(svg):
+    """chess.svg.board() draws arrows after (visually on top of) the pieces,
+    which for short moves — mainly knight hops — puts the arrowhead right
+    over the piece that just landed there, making it look erased. Move the
+    arrow elements to just before the first piece <use> element instead, so
+    pieces always render on top of the arrow trail leading into their square."""
+    arrow_pattern = re.compile(r'<(?:line|polygon)[^>]*class="arrow"[^>]*/>')
+    arrows = arrow_pattern.findall(svg)
+    if not arrows:
+        return svg
+    svg = arrow_pattern.sub('', svg)
+    first_use = svg.index('<use ')
+    return svg[:first_use] + "".join(arrows) + svg[first_use:]
+
+
 def _analyze(root_board, multipv=5, time_limit=2.0):
     """Run one multipv analysis pass. Shared by moves() and explain_reply()
     so both go through the same engine-invocation path."""
@@ -211,11 +218,21 @@ def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
     return lines
 
 
-def _display_ranked_moves(root_board, info, user, header):
+def _display_ranked_moves(root_board, info, user, header, show=True):
     """Summary table + per-candidate detail blocks with comparative
     ranking, for whichever position `info` was analyzed from. Shared by
     moves() (the position on the board) and explain_reply() (the position
     after a candidate move, one ply deeper)."""
+    if root_board.is_game_over():
+        if root_board.is_checkmate():
+            reason = "Checkmate"
+        elif root_board.is_stalemate():
+            reason = "Stalemate"
+        else:
+            reason = "Game over"
+        print(f"\n{reason} — no moves to analyze.")
+        return info
+
     best_score = info[0]["score"].relative
 
     # Precompute per-candidate facts once, shared by the summary table
@@ -245,17 +262,19 @@ def _display_ranked_moves(root_board, info, user, header):
     <tr><th>Rank</th><th>Move</th><th>Score</th><th>Gap vs best</th><th>Type</th></tr>
     {rows}
     </table>"""
-    display(HTML(table_html))
+    if show:
+        display(HTML(table_html))
+        print(f"\n{header}")
 
-    print(f"\n{header}")
     for idx, c in enumerate(candidates, start=1):
         move, pv = c["move"], c["move_info"]["pv"]
 
         temp_board = root_board.copy()
         temp_board.push(move)
 
-        svg_move = chess.svg.board(temp_board, arrows=[(move.from_square, move.to_square)],
-                                    size=300, orientation=user, lastmove=move)
+        svg_move = _pieces_over_arrows(chess.svg.board(
+            temp_board, arrows=[(move.from_square, move.to_square)],
+            size=300, orientation=user, lastmove=move))
 
         reasons = describe_move_reason(c["class_info"])
         rank_note = "This is the engine's top choice." if idx == 1 \
@@ -273,7 +292,8 @@ def _display_ranked_moves(root_board, info, user, header):
         <div style="margin-left: 20px; font-size: 16px;">{mv_out}<hr>{detail_out}</div>
         </div>"""
 
-        display(HTML(html_content))
+        if show:
+            display(HTML(html_content))
 
     return info
 
@@ -287,7 +307,7 @@ def moves(board, show=True):
     root_board = board.board
 
     info = _analyze(root_board, multipv=5, time_limit=2.0)
-    return _display_ranked_moves(root_board, info, user, header=f"Top {len(info)} Moves:")
+    return _display_ranked_moves(root_board, info, user, header=f"Top {len(info)} Moves:", show=show)
 
 
 def explain_reply(board, info, candidate=1, multipv=3, time_limit=1.0):

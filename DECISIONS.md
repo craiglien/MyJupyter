@@ -183,3 +183,32 @@ changed from `records` alone to `(records, critical)` to expose this. Verified b
 `Game.ipynb`'s third cell for the new return shape and added a commented-out example cell
 showing the chained-exploration call. Bumped `gac.py` to `0.1.0` (MINOR — new capability;
 not yet committed anywhere, so no prior callers to break).
+
+## Add at_move() to jump to any move, not just auto-flagged critical moments
+Status: DECIDED
+
+The actual use case turned out narrower than "auto-detect the worst moments": a specific
+real game, a specific remembered moment ("I thought I had the queen trapped a couple of
+moves earlier"), wanting to ask the engine about that exact point — which may not be one
+of `show_critical_moments()`'s top-N eval-swing picks at all. `sweep_game()` already
+records `fen_before` for every ply, not just flagged ones, so the data was already there;
+it just had no direct entry point.
+
+Added `at_move(records, move_number, side, user="w")` — looks up the matching record by
+move number + side, then runs the same explore-and-display logic `show_critical_moments()`
+uses (factored out into a shared `_explore_record()` helper to avoid duplicating it),
+returning `{"record", "board", "info"}` so exploration can continue via
+`cc.explain_reply()`/`cc.explain_line()` exactly like a critical moment can. Verified
+end-to-end including bad move number and bad side raising `ValueError`, and chaining into
+`cc.explain_reply()`. Bumped `gac.py` to `0.2.0`.
+
+Separately: discovered while re-editing `Game.ipynb` that a previous edit (the
+`records, critical` unpacking + example cell from the prior decision) had been silently
+reverted — the file's disk mtime showed it was overwritten *after* that edit, matching
+Jupyter's autosave writing the live browser tab's stale in-memory copy back over it. The
+open browser tab was never reloaded after that file edit, so it had no way to know about
+it. This is a standing risk whenever a notebook is both open live in a browser and edited
+directly on disk: the browser's autosave can clobber out-of-band file edits at any time,
+silently. No fix implemented yet — flagging it in case it needs a workflow change (e.g.
+always reload the tab immediately after a file-level edit, before any further interaction
+in the browser).

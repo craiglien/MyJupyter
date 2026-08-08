@@ -27,16 +27,22 @@ and a locally-built Stockfish engine.
   architecture — not the host's. See `DECISIONS.md`.
 
 ## Where data lives
-- `./data` (mounted to `/data` in the container) — currently `athlete_events.csv` and
-  `noc_regions.csv` (an Olympic-athletes dataset, not chess-related; provenance/purpose
-  unclear — see `TASKS.md`).
-- `./notebooks` (mounted to `/app`) — the actual notebook files, e.g. `Chess.ipynb`,
-  which drives Stockfish via `notebooks/cc.py` (`stockfish_path = "/usr/bin/stockfish"`).
-  `cc.py` is versioned via its own `__ver__` constant (a semver string, printed on
-  import), reset to a `0.0.0` baseline — bump MAJOR for breaking changes to a function's
-  signature/behavior, MINOR for new backwards-compatible functions/features, PATCH for
-  bug fixes only. Git log / `DECISIONS.md` cover the *why*; there's no separate changelog
-  file.
+- `./data` (mounted to `/data` in the container) — `data/engine_cache.json` is an
+  on-disk Stockfish result cache (gitignored, disposable — see `notebooks/position.py`).
+- `./notebooks` (mounted to `/app`) — the notebook files and two Python modules, layered:
+  - `notebooks/position.py` — single-position/FEN analysis primitives: build a position
+    from a FEN or PGN, get ranked candidate moves and explanations from Stockfish
+    (`stockfish_path = "/usr/bin/stockfish"`), and drill into a specific reply/line. Also
+    owns the Stockfish invocation (`open_engine()`) and on-disk result cache used by both
+    layers. Driven interactively by `notebooks/Position.ipynb`.
+  - `notebooks/game.py` — whole-game/PGN orchestration built entirely on `position.py`'s
+    API (no duplicate engine-invocation or PGN-parsing logic): sweep every ply of a PGN
+    for an eval curve and move-quality classification, flag critical moments, and jump to
+    any named move. Driven interactively by `notebooks/Game.ipynb`.
+  - Both modules are versioned via their own `__ver__` constant (a semver string, printed
+    on import) — bump MAJOR for breaking changes to a function's signature/behavior,
+    MINOR for new backwards-compatible functions/features, PATCH for bug fixes only. Git
+    log / `DECISIONS.md` cover the *why*; there's no separate changelog file.
 
 ## Hard constraints
 - Never commit a pre-built, architecture-specific Stockfish binary directly (that's the bug

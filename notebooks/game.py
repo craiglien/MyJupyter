@@ -1,56 +1,11 @@
-import io
-import json
-import os
-import time
-
 import chess
-import chess.engine
-import chess.pgn
 import matplotlib.pyplot as plt
 from IPython.display import HTML, display
 
-import cc
+import position
 
-__ver__ = "0.2.0"
-print(f"gac ver {__ver__}")
-
-# On-disk cache of per-position evals, keyed by (stockfish version, time_limit,
-# FEN) so a rebuilt/upgraded engine or a different time budget never silently
-# reuses a stale number. Sweep analysis is always multipv=1 by construction
-# (a cheap pass over every ply); deeper multipv drill-down for critical
-# moments goes through cc.moves() instead, which isn't cached here.
-_CACHE_PATH = "/data/gc_cache.json"
-
-
-def _load_cache():
-    if os.path.exists(_CACHE_PATH):
-        with open(_CACHE_PATH) as f:
-            return json.load(f)
-    return {}
-
-
-def _save_cache(cache):
-    with open(_CACHE_PATH, "w") as f:
-        json.dump(cache, f)
-
-
-def _engine_version(engine):
-    return engine.id.get("name", "unknown")
-
-
-def _evaluate_cached(engine, board, cache, time_limit, version):
-    """White-POV eval (centipawns, mate capped to +/-100000) for `board`,
-    from the on-disk cache if present, else a fresh engine.analyse() call
-    that also populates the cache."""
-    fen = board.fen()
-    key = f"{version}|1|{time_limit}|{fen}"
-    if key in cache:
-        return cache[key]["white_cp"]
-
-    info = engine.analyse(board, chess.engine.Limit(time=time_limit))
-    white_cp = info["score"].white().score(mate_score=100000)
-    cache[key] = {"white_cp": white_cp, "timestamp": time.time()}
-    return white_cp
+__ver__ = "0.2.1"
+print(f"game ver {__ver__}")
 
 
 def _game_phase(board):
@@ -95,17 +50,12 @@ def _format_loss(loss_cp):
 
 
 def _classify_quality(loss_pawns):
-    """Move-quality label from centipawn loss, reusing the exact tier
-    boundaries cc.py's describe_gap() uses for 'gap vs best' (tied/slightly
-    behind/clearly behind/far behind), so both notebooks agree on what
-    counts as a small vs large evaluation swing."""
-    if loss_pawns <= 0.05:
-        return "Best"
-    if loss_pawns <= 0.3:
-        return "Good"
-    if loss_pawns <= 1.0:
-        return "Inaccuracy"
-    return "Blunder"
+    """Move-quality label from centipawn loss, via position.py's shared
+    _gap_tier() — the exact tier boundaries describe_gap() uses for 'gap
+    vs best' (tied/slightly behind/clearly behind/far behind), so both
+    layers agree on what counts as a small vs large evaluation swing."""
+    _, label = position._gap_tier(loss_pawns)
+    return label
 
 
 def sweep_game(pgn_text, time_limit=0.3):
@@ -114,15 +64,15 @@ def sweep_game(pgn_text, time_limit=0.3):
     list of per-move records; see show_sweep() to display them and
     critical_moments()/show_critical_moments() to drill into the biggest
     swings."""
-    game = chess.pgn.read_game(io.StringIO(pgn_text))
+    game = position.parse_pgn(pgn_text)
     board = game.board()
 
-    cache = _load_cache()
+    cache = position._load_cache()
     records = []
 
-    with chess.engine.SimpleEngine.popen_uci(cc.stockfish_path) as engine:
-        version = _engine_version(engine)
-        prev_white_cp = _evaluate_cached(engine, board, cache, time_limit, version)
+    with position.open_engine() as engine:
+        version = position._engine_version(engine)
+        prev_white_cp = position._evaluate_cached(engine, board, cache, time_limit, version)
 
         for ply, move in enumerate(game.mainline_moves(), start=1):
             mover = "White" if board.turn == chess.WHITE else "Black"
@@ -131,7 +81,7 @@ def sweep_game(pgn_text, time_limit=0.3):
             fen_before = board.fen()
 
             board.push(move)
-            white_cp = _evaluate_cached(engine, board, cache, time_limit, version)
+            white_cp = position._evaluate_cached(engine, board, cache, time_limit, version)
 
             if mover == "White":
                 loss_cp = max(0, prev_white_cp - white_cp)
@@ -156,7 +106,7 @@ def sweep_game(pgn_text, time_limit=0.3):
 
             prev_white_cp = white_cp
 
-    _save_cache(cache)
+    position._save_cache(cache)
     return records
 
 
@@ -199,16 +149,17 @@ def critical_moments(records, top_n=3):
 def _explore_record(r, user):
     """Show what was actually played at r's position, then — clearly
     labeled as an alternative, not a replay of the game — the engine's own
-    ranked candidates there (via cc.moves()). Returns
+    ranked candidates there (via position.moves()). Returns
     {"record", "board", "info"} so exploration can continue further with
-    cc.explain_reply()/cc.explain_line(). Shared by show_critical_moments()
-    (auto-flagged moments) and at_move() (a move you name directly)."""
+    position.explain_reply()/position.explain_line(). Shared by
+    show_critical_moments() (auto-flagged moments) and at_move() (a move
+    you name directly)."""
     move_label = f"{r['move_number']}{'.' if r['mover'] == 'White' else '...'}"
     print(f"\n=== {move_label}{r['san']} — {r['quality']}, lost {r['loss_display']} ===")
     print(f"You played {move_label}{r['san']}. Below is NOT a replay of your game — "
           f"it's the engine's own ranked alternatives at this position instead:")
-    board = cc.make(r["fen_before"], user)
-    info = cc.moves(board)
+    board = position.make(r["fen_before"], user)
+    info = position.moves(board)
     return {"record": r, "board": board, "info": info}
 
 
@@ -226,7 +177,8 @@ def at_move(records, move_number, side, user="w"):
     engine's ranked options there. E.g. at_move(records, 15, "black") to
     discuss what Black could have done on move 15. Returns
     {"record", "board", "info"}, same shape as show_critical_moments(), so
-    you can keep exploring further with cc.explain_reply()/cc.explain_line()."""
+    you can keep exploring further with position.explain_reply()/
+    position.explain_line()."""
     if side.lower().startswith("w"):
         mover = "White"
     elif side.lower().startswith("b"):

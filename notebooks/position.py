@@ -1,5 +1,8 @@
 import io
+import json
+import os
 import re
+import time
 
 import chess
 import chess.engine
@@ -7,11 +10,105 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.0.2"
-print(f"cc ver {__ver__}")
+__ver__ = "0.1.0"
+print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
 stockfish_path = "/usr/bin/stockfish"
+
+# On-disk cache of Stockfish results, keyed by (engine version, multipv,
+# time_limit, FEN) so a rebuilt/upgraded engine or a different time budget
+# never silently reuses a stale result. Shared by _analyze()'s multipv
+# drill-down (moves()/explain_reply(), and game.py's at_move() through
+# those) and game.py's cheap multipv=1 eval sweep via _evaluate_cached() —
+# multipv is part of the key so the two kinds of entry never collide, they
+# just share the same cache file and load/save helpers. Entries record a
+# timestamp for visibility/debugging but don't auto-expire; they stay valid
+# until manually cleared or until the version in the key changes.
+_CACHE_PATH = "/data/engine_cache.json"
+
+
+def _load_cache():
+    if os.path.exists(_CACHE_PATH):
+        with open(_CACHE_PATH) as f:
+            return json.load(f)
+    return {}
+
+
+def _save_cache(cache):
+    with open(_CACHE_PATH, "w") as f:
+        json.dump(cache, f)
+
+
+def _engine_version(engine):
+    return engine.id.get("name", "unknown")
+
+
+def _evaluate_cached(engine, board, cache, time_limit, version):
+    """White-POV eval (centipawns, mate capped to +/-100000) for `board`,
+    from the on-disk cache if present, else a fresh engine.analyse() call
+    that also populates the cache. Used by game.py's per-ply eval sweep,
+    which is always multipv=1 by construction (a cheap pass over every
+    ply); deeper multipv drill-down for critical moments goes through
+    _analyze() instead, which caches separately (see _CACHE_PATH)."""
+    fen = board.fen()
+    key = f"{version}|1|{time_limit}|{fen}"
+    if key in cache:
+        return cache[key]["white_cp"]
+
+    info = engine.analyse(board, chess.engine.Limit(time=time_limit))
+    white_cp = info["score"].white().score(mate_score=100000)
+    cache[key] = {"white_cp": white_cp, "timestamp": time.time()}
+    return white_cp
+
+
+def _serialize_info(info):
+    """JSON-serializable form of engine.analyse()'s multipv result list —
+    just enough to reconstruct what _display_ranked_moves() reads back out
+    (each entry's PV and its score relative to the side to move)."""
+    return [
+        {
+            "pv": [m.uci() for m in entry["pv"]],
+            "cp": entry["score"].relative.score(),
+            "mate": entry["score"].relative.mate(),
+        }
+        for entry in info
+    ]
+
+
+def _deserialize_info(data, turn):
+    """Inverse of _serialize_info(); `turn` is the side to move in the
+    position the analysis was run from (PovScore needs it to know whose
+    perspective the stored relative score is from)."""
+    info = []
+    for entry in data:
+        rel = chess.engine.Mate(entry["mate"]) if entry["mate"] is not None else chess.engine.Cp(entry["cp"])
+        info.append({
+            "pv": [chess.Move.from_uci(u) for u in entry["pv"]],
+            "score": chess.engine.PovScore(rel, turn),
+        })
+    return info
+
+
+# Tier boundaries (in pawns) for "how far behind the best move is this
+# one." Shared between describe_gap()'s human-readable note below and
+# game.py's move-quality label, so the two can't silently drift out of
+# sync the way they used to when each hand-maintained its own copy.
+GAP_TIERS = (
+    (0.05, "Essentially tied with the top move.", "Best"),
+    (0.3, "Slightly behind the top move.", "Good"),
+    (1.0, "Clearly behind the top move.", "Inaccuracy"),
+)
+GAP_TIER_FALLBACK = ("Far behind the top move.", "Blunder")
+
+
+def _gap_tier(gap_pawns):
+    """(note, quality_label) for a centipawn-loss gap expressed in pawns."""
+    for threshold, note, label in GAP_TIERS:
+        if gap_pawns <= threshold:
+            return note, label
+    return GAP_TIER_FALLBACK
+
 
 def get_color(color):
     if color.lower().startswith('b'):
@@ -31,9 +128,14 @@ class CCBoard:
         self.user = get_color(user)
 
 
+def parse_pgn(pgn_text):
+    """Parse a full PGN string (headers and all) into a chess.pgn.Game.
+    Shared by pgn() below and game.py's sweep_game()."""
+    return chess.pgn.read_game(io.StringIO(pgn_text))
+
+
 def pgn(pgn, user):
-    pgn_file = io.StringIO(pgn)
-    gm = chess.pgn.read_game(pgn_file)
+    gm = parse_pgn(pgn)
     bd = gm.board()
     for m in gm.mainline_moves():
         bd.push(m)
@@ -144,14 +246,7 @@ def describe_gap(best_score, this_score):
 
     gap = (best_score.score() - this_score.score()) / 100
     gap_text = f"-{gap:.2f}" if gap > 0 else "0.00"
-    if gap <= 0.05:
-        note = "Essentially tied with the top move."
-    elif gap <= 0.3:
-        note = "Slightly behind the top move."
-    elif gap <= 1.0:
-        note = "Clearly behind the top move."
-    else:
-        note = "Far behind the top move."
+    note, _ = _gap_tier(gap)
     return gap_text, note
 
 
@@ -192,11 +287,32 @@ def _pieces_over_arrows(svg):
     return svg[:first_use] + "".join(arrows) + svg[first_use:]
 
 
+def open_engine():
+    """Start a Stockfish process via UCI. Use as `with open_engine() as
+    engine:`. One place to change if engine startup options are ever
+    needed; shared by _analyze() (opens/closes per call) and game.py's
+    sweep_game() (opens once, holds it for the whole sweep) even though
+    the two use different lifecycles."""
+    return chess.engine.SimpleEngine.popen_uci(stockfish_path)
+
+
 def _analyze(root_board, multipv=5, time_limit=2.0):
-    """Run one multipv analysis pass. Shared by moves() and explain_reply()
-    so both go through the same engine-invocation path."""
-    with chess.engine.SimpleEngine.popen_uci(stockfish_path) as engine:
-        return engine.analyse(root_board, chess.engine.Limit(time=time_limit), multipv=multipv)
+    """Run one multipv analysis pass, cached on disk (see _CACHE_PATH) so
+    re-running a notebook cell against a position just analyzed doesn't
+    re-hit Stockfish for the full time_limit. Shared by moves() and
+    explain_reply() so both go through the same engine-invocation and
+    caching path."""
+    fen = root_board.fen()
+    cache = _load_cache()
+    with open_engine() as engine:
+        version = _engine_version(engine)
+        key = f"{version}|{multipv}|{time_limit}|{fen}"
+        if key in cache:
+            return _deserialize_info(cache[key]["info"], root_board.turn)
+        info = engine.analyse(root_board, chess.engine.Limit(time=time_limit), multipv=multipv)
+    cache[key] = {"info": _serialize_info(info), "timestamp": time.time()}
+    _save_cache(cache)
+    return info
 
 
 def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
@@ -357,4 +473,3 @@ def explain_line(board, info, candidate=1, plies=4):
         </div>"""
 
         display(HTML(html_content))
-

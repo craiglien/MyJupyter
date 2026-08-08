@@ -29,6 +29,17 @@ possibly the move after that), in increasing cost. 1 and 2 promoted to `TASKS.md
   another multipv call — so this should stay an on-demand, one-line-at-a-time call rather
   than anything automatic, if it's ever built.
 
+## v2: hybrid Stockfish + LLM narrative
+Not scheduled. The current explanation text (`describe_move_reason()`, `describe_gap()`,
+`describe_score()` in `position.py`) is template-formatted strings built directly from
+Stockfish facts (`classify_move()` dicts, `Score`/`PovScore` objects, PVs). A future
+version wants to pair Stockfish with an LLM API to generate richer, more natural
+narrative — e.g. explaining a whole sequence of actual moves in prose, not just one
+position's ranked candidates. For that swap to be additive rather than a rewrite, keep
+the fact-computation functions (`classify_move`, the raw engine `info`/PVs, eval numbers)
+separate from the narrative-formatting functions, so an LLM step can consume the same
+facts and produce prose without touching engine-interaction code.
+
 ## Whole-game analysis notebook (new module `gac.py`)
 `cc.py` explains a single position at a time (from a FEN). The next step is a second
 notebook, alongside `Chess.ipynb`, that has a sense of a whole *game* and can narrate its

@@ -212,3 +212,73 @@ directly on disk: the browser's autosave can clobber out-of-band file edits at a
 silently. No fix implemented yet — flagging it in case it needs a workflow change (e.g.
 always reload the tab immediately after a file-level edit, before any further interaction
 in the browser).
+
+## Rename cc.py/gac.py/Chess.ipynb to position.py/game.py/Position.ipynb
+Status: DECIDED
+
+After ~20 months of incremental growth, the module names no longer said what the two
+layers actually do: `cc.py` (single-position/FEN analysis) and `gac.py` (whole-game/PGN
+orchestration built on it) don't read as a layered architecture, they read as two
+unrelated abbreviations. Ahead of using this tooling for real game analysis (a specific
+game where a queen-trap opportunity was believed missed) and likely repeated future
+analyses beyond that one, renamed for clarity: `cc.py` → `position.py`, `gac.py` →
+`game.py`, `Chess.ipynb` → `Position.ipynb` (`Game.ipynb` already matched `gac.py`/
+`game.py` and didn't need to change). Done via `git mv` to preserve history. All internal
+references updated (`import cc`/`import gac` → `import position`/`import game`, and every
+qualified call site in both modules and both notebooks). Treated as a structural rename,
+not a functional change — no version bump for the rename itself; see the next entry for
+the version bumps that came from the accompanying cleanup.
+
+## Deduplicate cc.py/gac.py overlap now that gac.py is built on cc.py's stabilized API
+Status: DECIDED
+
+Auditing the two layers ahead of real game analysis turned up four places `gac.py`
+duplicated logic that already existed in (or belonged in) `cc.py`, addressed as part of
+the same pass as the rename above:
+
+1. **PGN parsing.** `cc.pgn()` and `gac.sweep_game()` each independently did
+   `chess.pgn.read_game(io.StringIO(pgn_text))`. Added `position.parse_pgn()` as the one
+   place that happens; both callers use it now.
+2. **Engine invocation.** `cc._analyze()` and `gac.sweep_game()` each called
+   `chess.engine.SimpleEngine.popen_uci(stockfish_path)` directly (with different
+   lifecycles — `_analyze()` opens/closes per call, `sweep_game()` holds one engine open
+   for the whole sweep, both lifecycles kept as-is). Added `position.open_engine()` as
+   the one place that starts the process, so there's a single spot to add engine options
+   later if needed.
+3. **Eval caching, and closing a caching gap.** Moved `_load_cache()`/`_save_cache()`/
+   `_engine_version()`/`_evaluate_cached()` from `gac.py` into `position.py` as shared
+   utilities (`gac.py`'s per-ply sweep eval — always multipv=1 — uses them exactly as
+   before). Separately, `position._analyze()` (the multipv=5+ drill-down behind
+   `moves()`/`explain_reply()`, and transitively `game.py`'s `at_move()`/
+   `show_critical_moments()`) previously had **no caching at all** — re-running a
+   notebook cell against a position just analyzed always re-ran the full `time_limit`
+   search. Extended caching to `_analyze()` too, in the same cache file
+   (`/data/engine_cache.json`, renamed from `/data/gc_cache.json` since it's no longer
+   gac-specific — gitignored and disposable, no migration needed), with `multipv` baked
+   into each entry's key so the cheap multipv=1 sweep pass and the expensive multipv=5+
+   drill-down never collide; they still answer different questions, they just now share
+   the caching mechanism. Caching a full multipv result required serializing/
+   deserializing each PV (list of UCI moves) and relative score (cp or mate) —
+   `_serialize_info()`/`_deserialize_info()` in `position.py`. A cache hit still opens
+   the engine briefly (fast UCI handshake, needed to confirm the version key still
+   matches) but skips the full timed search.
+4. **Move-quality tier thresholds.** `cc.describe_gap()`'s 0.05/0.3/1.0-pawn cutoffs were
+   hand-duplicated as `gac._classify_quality()`'s Best/Good/Inaccuracy/Blunder labels,
+   kept in sync only by comment. Extracted both the numeric thresholds and the label into
+   one shared table, `position.GAP_TIERS` (read via `position._gap_tier()`), so
+   `describe_gap()`'s note text and `game._classify_quality()`'s label are always
+   derived from the same source.
+
+Versioned per this project's existing semver convention: `position.py` 0.0.2 → 0.1.0
+(MINOR — new public functions `parse_pgn`, `open_engine`, `GAP_TIERS`, plus `_analyze()`
+gaining caching, all additive with no existing signature/behavior changes). `game.py`
+0.2.0 → 0.2.1 (PATCH — internals now call `position.py`'s shared helpers instead of local
+duplicates; `sweep_game`/`show_sweep`/`critical_moments`/`at_move`/`analyze_game` keep
+identical signatures and observable behavior).
+
+Deferred to `TASKS.md`: a `GameCursor` navigator for stepping forward/backward through a
+game's actual played moves (not built in this pass) — see `TASKS.md` "Up next" for the
+design. Also noted in `IDEAS.md`: a future v2 direction pairs Stockfish with an LLM API
+for narrative generation, so this cleanup deliberately kept engine-fact computation
+(`classify_move`, raw `info`/PVs, eval numbers) separate from narrative-formatting
+functions.

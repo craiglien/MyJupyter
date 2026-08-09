@@ -58,7 +58,23 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON
 # Verify the Python version
 RUN python3 --version && python --version
 
-RUN pip install jupyter 
+RUN pip install jupyter
+
+# The "Restart Kernel and Run All Cells" confirmation dialog's "Do not ask
+# me again" checkbox only sets an in-memory flag on the browser tab's
+# session object — it's never persisted, so it reappears on every page
+# reload. This settings override is the actual persistent switch for it;
+# lives under a system-wide config path (not $HOME) since /home/crun is
+# re-created fresh by entrypoint.sh on every container start.
+RUN mkdir -p /usr/local/etc/jupyter/labconfig && \
+    printf '%s\n' \
+        '{' \
+        '  "@jupyterlab/apputils-extension:sessionDialogs": {' \
+        '    "skipKernelRestartDialog": true' \
+        '  }' \
+        '}' \
+        > /usr/local/etc/jupyter/labconfig/overrides.json
+
 RUN pip install pandas numpy matplotlib seaborn
 RUN pip install django
 RUN pip install prettytable

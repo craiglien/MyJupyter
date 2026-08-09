@@ -2,3 +2,4 @@
 notebooks/__marimo__/
 stockfish-bin
 data/engine_cache.json
+notebooks/*.debug.ipynb

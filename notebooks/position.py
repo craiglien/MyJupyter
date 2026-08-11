@@ -10,7 +10,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.1.0"
+__ver__ = "0.2.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -134,10 +134,19 @@ def parse_pgn(pgn_text):
     return chess.pgn.read_game(io.StringIO(pgn_text))
 
 
-def pgn(pgn, user):
+def pgn(pgn, user, plies=None):
+    """Play a full PGN (headers and all) and return the resulting position.
+    By default (plies=None) plays every move in the mainline and returns the
+    FINAL position — not the position in a `[FEN]` header before any moves
+    are played. For a puzzle-style PGN where you want the starting position
+    instead, pass plies=0 (or make(fen, user) directly, if you already have
+    just the FEN)."""
     gm = parse_pgn(pgn)
     bd = gm.board()
-    for m in gm.mainline_moves():
+    moves = list(gm.mainline_moves())
+    if plies is not None:
+        moves = moves[:plies]
+    for m in moves:
         bd.push(m)
     return CCBoard(bd.fen(), user)
 

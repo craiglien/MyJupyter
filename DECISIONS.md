@@ -30,6 +30,26 @@ Chosen over a git submodule or an in-Dockerfile `git clone`/`wget` because it's 
 (~1.2MB source-only), and avoids a network dependency during `docker build`. Tradeoff:
 the vendored snapshot isn't obviously pinned to a tagged release — see `TASKS.md`.
 
+## Root-caused the "why does it think it's Black's move?" bug: `position.pgn()` always returns the end-of-PGN position
+Status: DECIDED
+
+Confirmed via code reading (`notebooks/position.py`'s old `pgn()`) plus a direct repro
+against the exact 2026-08-09 Daily Puzzle PGN logged in `TASKS.md`: `position.pgn()`
+unconditionally plays every move in the mainline and returns the resulting *final*
+position — never the `[FEN]` header's starting position. For that puzzle, the mainline
+ends with `4. a8=Q`, after which it's genuinely Black to move; anyone using
+`position.pgn(pgn_text, 'w')` expecting "the puzzle's starting position" (matching the
+FEN header's `w` to move) instead silently got the game's end state. Not a
+move-attribution bug — `sweep_game()`/`analyze_game()` were already confirmed correct on
+this exact PGN.
+
+Fix: added an optional `plies` parameter to `pgn()` (default `None` preserves the
+existing "play everything" behavior). `pgn(pgn_text, user, plies=0)` returns the starting
+position instead, respecting the FEN header. Verified against the reported puzzle PGN:
+default behavior still lands on Black to move; `plies=0` correctly returns White to move,
+FEN-for-FEN matching the header. `position.py` bumped to `0.2.0` (new backwards-compatible
+parameter, no behavior change for existing callers).
+
 ## Project control-file framework: plain four-file bootstrap, not CONTEXT.md/GUARDRAIL.loc.md
 Status: DECIDED
 

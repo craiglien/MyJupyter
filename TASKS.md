@@ -4,14 +4,10 @@
 (none — paused; chess is a hobby project, picking back up whenever)
 
 ## Up next
-- Try `GameCursor` (`game.py`) against a real full game with a specific remembered
-  tactical moment (motivating example: "I thought I had the opponent's queen trapped a
-  couple of moves earlier, but missed an escape square"). `.next()`/`.prev()`/`.goto()`
-  are built and verified against synthetic records (navigation + error handling all
-  correct — see `DECISIONS.md`); `.explain()` still needs a real Stockfish run to check
-  end to end. In `Game.ipynb`/`Game.debug.ipynb`: `records, _ = game.analyze_game(pgn)`,
-  then `c = game.GameCursor(records, user="w")`, then step with `c.next()`/`c.prev()`/
-  `c.goto(move_number, side)` and drill in with `c.explain()`.
+- Visually confirm `GameCursor` in the browser (`Game.ipynb`/`Game.debug.ipynb`) — the
+  underlying mechanics (navigation, error handling, a real Stockfish `.explain()` call,
+  and a checkmate-ending game) are already verified against Fool's Mate; see
+  `DECISIONS.md`. This is just eyeballing that the notebook UI renders it correctly.
 - Decide on a workflow fix for the `Game.ipynb` autosave-clobbering risk: a live browser
   tab's autosave can silently overwrite direct file edits to the same notebook, and vice
   versa. Happened once already this session. See `DECISIONS.md`.

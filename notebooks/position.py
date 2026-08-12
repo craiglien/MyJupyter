@@ -10,7 +10,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.2.0"
+__ver__ = "0.3.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -343,11 +343,15 @@ def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
     return lines
 
 
-def _display_ranked_moves(root_board, info, user, header, show=True):
-    """Summary table + per-candidate detail blocks with comparative
-    ranking, for whichever position `info` was analyzed from. Shared by
-    moves() (the position on the board) and explain_reply() (the position
-    after a candidate move, one ply deeper)."""
+def _display_ranked_moves(root_board, info, user, header, show=True, full_detail=1):
+    """Summary table (every candidate) + full board-diagram detail blocks
+    (only the top `full_detail` candidates, default 1) for whichever
+    position `info` was analyzed from. Keeps the default view scannable —
+    all `len(info)` detail blocks stacking up, especially across repeated
+    GameCursor.explain() calls, is what actually made this hard to read.
+    Drill into any other candidate with explain_reply()/explain_line().
+    Shared by moves() (the position on the board) and explain_reply() (the
+    position after a candidate move, one ply deeper)."""
     if root_board.is_game_over():
         if root_board.is_checkmate():
             reason = "Checkmate"
@@ -392,6 +396,9 @@ def _display_ranked_moves(root_board, info, user, header, show=True):
         print(f"\n{header}")
 
     for idx, c in enumerate(candidates, start=1):
+        if idx > full_detail:
+            break
+
         move, pv = c["move"], c["move_info"]["pv"]
 
         temp_board = root_board.copy()
@@ -423,19 +430,23 @@ def _display_ranked_moves(root_board, info, user, header, show=True):
     return info
 
 
-def moves(board, show=True):
+def moves(board, show=True, full_detail=1):
     """Show the top candidate moves for `board`, ranked and compared
-    against each other, with an explanation for each. Returns the engine's
-    raw multipv analysis so a specific candidate's continuation can be
-    inspected further with explain_line() or explain_reply()."""
+    against each other, with an explanation for each. Only the top
+    `full_detail` candidates (default 1) get a full board-diagram detail
+    block, to keep the default view scannable; the summary table still
+    covers every candidate, and any of them can be drilled into further
+    with explain_line() or explain_reply(). Returns the engine's raw
+    multipv analysis."""
     user = board.user
     root_board = board.board
 
     info = _analyze(root_board, multipv=5, time_limit=2.0)
-    return _display_ranked_moves(root_board, info, user, header=f"Top {len(info)} Moves:", show=show)
+    return _display_ranked_moves(root_board, info, user, header=f"Top {len(info)} Moves:",
+                                  show=show, full_detail=full_detail)
 
 
-def explain_reply(board, info, candidate=1, multipv=3, time_limit=1.0):
+def explain_reply(board, info, candidate=1, multipv=3, time_limit=1.0, full_detail=1):
     """Explain WHY the engine expects a given reply, by analyzing the
     position after candidate move `candidate` (1-indexed, matching the
     numbering from moves()) and ranking the opponent's own options against
@@ -455,7 +466,8 @@ def explain_reply(board, info, candidate=1, multipv=3, time_limit=1.0):
 
     reply_info = _analyze(reply_board, multipv=multipv, time_limit=time_limit)
     return _display_ranked_moves(reply_board, reply_info, user,
-                                  header=f"Top {len(reply_info)} Replies for {mover_label}:")
+                                  header=f"Top {len(reply_info)} Replies for {mover_label}:",
+                                  full_detail=full_detail)
 
 
 def explain_line(board, info, candidate=1, plies=4):

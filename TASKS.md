@@ -4,10 +4,13 @@
 (none — paused; chess is a hobby project, picking back up whenever)
 
 ## Up next
-- Visually confirm `GameCursor` in the browser (`Game.ipynb`/`Game.debug.ipynb`) — the
-  underlying mechanics (navigation, error handling, a real Stockfish `.explain()` call,
-  and a checkmate-ending game) are already verified against Fool's Mate; see
-  `DECISIONS.md`. This is just eyeballing that the notebook UI renders it correctly.
+- Visually re-confirm `GameCursor` in the browser (`Game.ipynb`/`Game.debug.ipynb`) —
+  underlying mechanics were already verified against Fool's Mate (navigation, error
+  handling, a real Stockfish `.explain()` call, a checkmate-ending game), but the
+  display was reported hard to read (all 5 candidates rendering a full detail block).
+  Trimmed to top-1 by default (`full_detail` param — see `DECISIONS.md`); worth
+  eyeballing again in the browser to confirm it's actually more readable now, not just
+  less verbose.
 - Decide on a workflow fix for the `Game.ipynb` autosave-clobbering risk: a live browser
   tab's autosave can silently overwrite direct file edits to the same notebook, and vice
   versa. Happened once already this session. See `DECISIONS.md`.

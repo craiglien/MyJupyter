@@ -4,7 +4,7 @@ from IPython.display import HTML, display
 
 import position
 
-__ver__ = "0.2.1"
+__ver__ = "0.3.0"
 print(f"game ver {__ver__}")
 
 
@@ -171,6 +171,29 @@ def show_critical_moments(records, top_n=3, user="w"):
     return [_explore_record(r, user) for r in critical_moments(records, top_n=top_n)]
 
 
+def _mover_from_side(side):
+    """'White'/'Black' from a user-typed side string, e.g. at_move()'s
+    "black" or GameCursor.goto()'s "w" — shared so both agree on what
+    counts as valid input."""
+    if side.lower().startswith("w"):
+        return "White"
+    elif side.lower().startswith("b"):
+        return "Black"
+    else:
+        raise ValueError(f"Unrecognized side {side!r}; expected something starting with 'w' or 'b'")
+
+
+def _find_move(records, move_number, side):
+    """Index into `records` of the (move_number, side) ply, or raise if
+    there's no such move in this game. Shared by at_move() and
+    GameCursor.goto()."""
+    mover = _mover_from_side(side)
+    matches = [i for i, r in enumerate(records) if r["move_number"] == move_number and r["mover"] == mover]
+    if not matches:
+        raise ValueError(f"No move {move_number} for {mover} in this game")
+    return matches[0]
+
+
 def at_move(records, move_number, side, user="w"):
     """Jump directly to the position before a specific move you name —
     not necessarily one flagged as a critical moment — and show the
@@ -179,18 +202,54 @@ def at_move(records, move_number, side, user="w"):
     {"record", "board", "info"}, same shape as show_critical_moments(), so
     you can keep exploring further with position.explain_reply()/
     position.explain_line()."""
-    if side.lower().startswith("w"):
-        mover = "White"
-    elif side.lower().startswith("b"):
-        mover = "Black"
-    else:
-        raise ValueError(f"Unrecognized side {side!r}; expected something starting with 'w' or 'b'")
+    return _explore_record(records[_find_move(records, move_number, side)], user)
 
-    matches = [r for r in records if r["move_number"] == move_number and r["mover"] == mover]
-    if not matches:
-        raise ValueError(f"No move {move_number} for {mover} in this game")
 
-    return _explore_record(matches[0], user)
+class GameCursor:
+    """Stateful forward/backward stepper over a game's actual played moves,
+    built from sweep_game()'s records. .next()/.prev()/.goto() are cheap —
+    they just move the cursor and display the board, no engine call. Only
+    .explain() hits the engine, via the same _explore_record() path as
+    at_move(): the engine's ranked alternatives at the position BEFORE the
+    cursor's move, compared against what was actually played."""
+
+    def __init__(self, records, user="w"):
+        if not records:
+            raise ValueError("Can't build a GameCursor from an empty game")
+        self.records = records
+        self.user = user
+        self.index = 0
+
+    @property
+    def record(self):
+        return self.records[self.index]
+
+    def _show(self):
+        r = self.record
+        move_label = f"{r['move_number']}{'.' if r['mover'] == 'White' else '...'}"
+        print(f"{move_label}{r['san']} — {r['quality']} ({r['white_eval_display']})")
+        board = position.make(r["fen_after"], self.user)
+        position.show(board)
+        return board
+
+    def next(self):
+        if self.index >= len(self.records) - 1:
+            raise IndexError("Already at the last move")
+        self.index += 1
+        return self._show()
+
+    def prev(self):
+        if self.index <= 0:
+            raise IndexError("Already at the first move")
+        self.index -= 1
+        return self._show()
+
+    def goto(self, move_number, side):
+        self.index = _find_move(self.records, move_number, side)
+        return self._show()
+
+    def explain(self):
+        return _explore_record(self.record, self.user)
 
 
 def analyze_game(pgn_text, time_limit=0.3, top_n_critical=3, user="w", show_critical=True):

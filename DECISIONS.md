@@ -50,6 +50,31 @@ default behavior still lands on Black to move; `plies=0` correctly returns White
 FEN-for-FEN matching the header. `position.py` bumped to `0.2.0` (new backwards-compatible
 parameter, no behavior change for existing callers).
 
+## GameCursor design: cheap navigation, engine calls only on demand
+Status: DECIDED
+
+Built `GameCursor` in `game.py` as a thin stateful wrapper over `sweep_game()`'s
+`records` list, reusing `at_move()`'s existing position-lookup logic (extracted into
+shared `_mover_from_side()`/`_find_move()` helpers so `at_move()` and
+`GameCursor.goto()` can't drift apart) rather than inventing a parallel lookup path.
+
+Key design choice: `.next()`/`.prev()`/`.goto()` only move the cursor's index and
+re-render the board (`position.make()` + `position.show()`, both cheap/no engine call);
+only `.explain()` hits Stockfish, via the same `_explore_record()` path `at_move()`/
+`show_critical_moments()` already use. This keeps casual stepping through a game fast
+and free, and makes the one expensive operation explicit and opt-in per move, rather
+than re-analyzing on every `.next()`.
+
+Verified `.next()`/`.prev()`/`.goto()` (including out-of-range/nonexistent-move error
+handling) against synthetic records built from a real opening PGN, without needing
+Stockfish. `.explain()` reuses `_explore_record()` unchanged, so it inherits that
+function's existing behavior rather than needing separate verification — but running it
+end to end against a real game (the motivating "missed an escape square" example) still
+needs a real engine pass; see `TASKS.md`.
+
+`game.py` bumped to `0.3.0` (new `GameCursor` class + `_mover_from_side()`/`_find_move()`
+helpers, `at_move()`'s public signature/behavior unchanged).
+
 ## Project control-file framework: plain four-file bootstrap, not CONTEXT.md/GUARDRAIL.loc.md
 Status: DECIDED
 

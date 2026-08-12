@@ -75,6 +75,26 @@ needs a real engine pass; see `TASKS.md`.
 `game.py` bumped to `0.3.0` (new `GameCursor` class + `_mover_from_side()`/`_find_move()`
 helpers, `at_move()`'s public signature/behavior unchanged).
 
+## GameCursor end-to-end verification: Fool's Mate, not the original remembered game
+Status: DECIDED
+
+The original motivating example (a remembered game where a queen-trapping idea missed an
+escape square) couldn't be found in game history. Substituted the shortest possible real
+game — Fool's Mate (`1. f3 e5 2. g4 Qh4#`) — as the end-to-end test case instead, since
+what actually needed verifying was the plumbing (`GameCursor` + a real Stockfish call),
+not that specific tactical moment.
+
+Ran it directly against the real engine (via the existing `jupyter-notebook` Docker
+image, calling `position.py`/`game.py` outside the notebook UI to isolate engine
+behavior) rather than assuming it would work. This incidentally exercised a genuine edge
+case `sweep_game()` had never hit before: evaluating the position after a
+checkmate-ending move, which has zero legal moves for the engine to search. It worked
+without error — Stockfish's own no-legal-moves fallback (reports a mate/draw score
+immediately rather than erroring) covers it, so no code change was needed.
+`GameCursor.next()` and `.explain()` both produced correct results against the real
+engine. Visual/browser confirmation of the notebook UI itself is still worth doing, but
+the previously-open question (does this work against a real engine at all?) is answered.
+
 ## Project control-file framework: plain four-file bootstrap, not CONTEXT.md/GUARDRAIL.loc.md
 Status: DECIDED
 

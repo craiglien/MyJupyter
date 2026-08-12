@@ -4,15 +4,14 @@
 (none — paused; chess is a hobby project, picking back up whenever)
 
 ## Up next
-- Build a `GameCursor` in `game.py` — a stateful forward/backward stepper over a game's
-  actual played moves (`.next()`/`.prev()`/`.goto(move_number, side)`), plus an on-demand
-  `.explain()` that shows the engine's ranked alternatives at the cursor's position
-  against what was actually played. `at_move()` already has the position-lookup logic;
-  this generalizes it into something you can step through move-by-move instead of only
-  jumping to one named move at a time. See `DECISIONS.md` for the full design. Motivating
-  example, not yet run: "I thought I had the opponent's queen trapped a couple of moves
-  earlier, but missed an escape square" — build this, then run it against that real game
-  as the first end-to-end test.
+- Try `GameCursor` (`game.py`) against a real full game with a specific remembered
+  tactical moment (motivating example: "I thought I had the opponent's queen trapped a
+  couple of moves earlier, but missed an escape square"). `.next()`/`.prev()`/`.goto()`
+  are built and verified against synthetic records (navigation + error handling all
+  correct — see `DECISIONS.md`); `.explain()` still needs a real Stockfish run to check
+  end to end. In `Game.ipynb`/`Game.debug.ipynb`: `records, _ = game.analyze_game(pgn)`,
+  then `c = game.GameCursor(records, user="w")`, then step with `c.next()`/`c.prev()`/
+  `c.goto(move_number, side)` and drill in with `c.explain()`.
 - Decide on a workflow fix for the `Game.ipynb` autosave-clobbering risk: a live browser
   tab's autosave can silently overwrite direct file edits to the same notebook, and vice
   versa. Happened once already this session. See `DECISIONS.md`.

@@ -95,6 +95,25 @@ immediately rather than erroring) covers it, so no code change was needed.
 engine. Visual/browser confirmation of the notebook UI itself is still worth doing, but
 the previously-open question (does this work against a real engine at all?) is answered.
 
+## Trim move-options display to the top candidate by default, not all 5
+Status: DECIDED
+
+Reported as "hard to read" after visually testing `GameCursor` in the browser. Root
+cause was a display problem in `position.py`'s `_display_ranked_moves()`, not a
+Jupyter-vs-marimo one — it always rendered a full board-diagram-plus-text detail block
+for every one of `multipv` (default 5) candidates, on top of the summary table. Calling
+`GameCursor.explain()` repeatedly while stepping through a game stacked these up fast.
+
+Fix: added a `full_detail` parameter (default `1`) to `moves()`/`explain_reply()`/
+`_display_ranked_moves()` that caps how many top-ranked candidates get a full detail
+block; the summary table still lists every candidate. Other candidates remain reachable
+via the existing `explain_reply()`/`explain_line()` drill-down, unchanged. Verified
+against the real engine (Fool's Mate via `GameCursor.explain()`): summary table still
+shows all 5 candidates, only 1 detail block renders instead of 5.
+
+`position.py` bumped to `0.3.0` (new backwards-compatible parameter; existing callers
+still work, but default rendered output is intentionally less verbose than before).
+
 ## Project control-file framework: plain four-file bootstrap, not CONTEXT.md/GUARDRAIL.loc.md
 Status: DECIDED
 

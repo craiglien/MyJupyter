@@ -10,7 +10,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.3.0"
+__ver__ = "0.4.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -343,6 +343,65 @@ def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
     return lines
 
 
+def rank_candidates(root_board, info):
+    """Per-candidate facts (move, score, san, class_info, score_text,
+    eval_text, gap_text, gap_note) for each entry in `info`, ranked in the
+    order the engine returned them (best first). Pure — no display, no
+    engine call. Shared by _display_ranked_moves() (Jupyter) and any other
+    caller that wants the same ranking without Jupyter's display() side
+    effects, e.g. a marimo notebook building its own candidate-picker UI."""
+    best_score = info[0]["score"].relative
+
+    candidates = []
+    for move_info in info:
+        move = move_info["pv"][0]
+        score = move_info["score"].relative
+        san = root_board.san(move)
+        class_info = classify_move(root_board, move)
+        score_text, eval_text = describe_score(score)
+        gap_text, gap_note = describe_gap(best_score, score)
+        candidates.append({
+            "move_info": move_info, "move": move, "score": score, "san": san,
+            "class_info": class_info, "score_text": score_text, "eval_text": eval_text,
+            "gap_text": gap_text, "gap_note": gap_note,
+        })
+    return candidates
+
+
+def render_candidate_html(root_board, candidates, idx, user):
+    """The full board-diagram-plus-text detail block for candidate `idx`
+    (1-indexed into rank_candidates()'s output) — board SVG with the move
+    arrow, why-this-move reasons, a rank note, and the engine's expected
+    continuation. Returns the HTML string; no display() call, so it works
+    the same whether the caller wraps it for Jupyter (display(HTML(...)))
+    or marimo (mo.Html(...))."""
+    c = candidates[idx - 1]
+    move, pv = c["move"], c["move_info"]["pv"]
+
+    temp_board = root_board.copy()
+    temp_board.push(move)
+
+    svg_move = _pieces_over_arrows(chess.svg.board(
+        temp_board, arrows=[(move.from_square, move.to_square)],
+        size=300, orientation=user, lastmove=move))
+
+    reasons = describe_move_reason(c["class_info"])
+    rank_note = "This is the engine's top choice." if idx == 1 \
+        else f"{c['gap_note']} (Gap vs best: {c['gap_text']})"
+
+    continuation_lines = _describe_continuation(temp_board, pv[1:], max_extra_plies=2)
+
+    mv_out = f"{idx}. {c['san']} ({move.uci()}) &mdash; {c['score_text']}"
+    detail_lines = [f"Eval: {c['eval_text']}", "<br>".join(reasons), rank_note] + continuation_lines
+    detail_out = "<hr>".join(detail_lines)
+
+    return f"""
+    <div style="display: flex; align-items: center;">
+    <div>{svg_move}</div>
+    <div style="margin-left: 20px; font-size: 16px;">{mv_out}<hr>{detail_out}</div>
+    </div>"""
+
+
 def _display_ranked_moves(root_board, info, user, header, show=True, full_detail=1):
     """Summary table (every candidate) + full board-diagram detail blocks
     (only the top `full_detail` candidates, default 1) for whichever
@@ -362,23 +421,7 @@ def _display_ranked_moves(root_board, info, user, header, show=True, full_detail
         print(f"\n{reason} — no moves to analyze.")
         return info
 
-    best_score = info[0]["score"].relative
-
-    # Precompute per-candidate facts once, shared by the summary table
-    # and the detailed blocks below.
-    candidates = []
-    for move_info in info:
-        move = move_info["pv"][0]
-        score = move_info["score"].relative
-        san = root_board.san(move)
-        class_info = classify_move(root_board, move)
-        score_text, eval_text = describe_score(score)
-        gap_text, gap_note = describe_gap(best_score, score)
-        candidates.append({
-            "move_info": move_info, "move": move, "score": score, "san": san,
-            "class_info": class_info, "score_text": score_text, "eval_text": eval_text,
-            "gap_text": gap_text, "gap_note": gap_note,
-        })
+    candidates = rank_candidates(root_board, info)
 
     # Summary table: scan all candidates and their ranking at a glance.
     rows = "".join(
@@ -395,37 +438,9 @@ def _display_ranked_moves(root_board, info, user, header, show=True, full_detail
         display(HTML(table_html))
         print(f"\n{header}")
 
-    for idx, c in enumerate(candidates, start=1):
-        if idx > full_detail:
-            break
-
-        move, pv = c["move"], c["move_info"]["pv"]
-
-        temp_board = root_board.copy()
-        temp_board.push(move)
-
-        svg_move = _pieces_over_arrows(chess.svg.board(
-            temp_board, arrows=[(move.from_square, move.to_square)],
-            size=300, orientation=user, lastmove=move))
-
-        reasons = describe_move_reason(c["class_info"])
-        rank_note = "This is the engine's top choice." if idx == 1 \
-            else f"{c['gap_note']} (Gap vs best: {c['gap_text']})"
-
-        continuation_lines = _describe_continuation(temp_board, pv[1:], max_extra_plies=2)
-
-        mv_out = f"{idx}. {c['san']} ({move.uci()}) &mdash; {c['score_text']}"
-        detail_lines = [f"Eval: {c['eval_text']}", "<br>".join(reasons), rank_note] + continuation_lines
-        detail_out = "<hr>".join(detail_lines)
-
-        html_content = f"""
-        <div style="display: flex; align-items: center;">
-        <div>{svg_move}</div>
-        <div style="margin-left: 20px; font-size: 16px;">{mv_out}<hr>{detail_out}</div>
-        </div>"""
-
+    for idx in range(1, min(full_detail, len(candidates)) + 1):
         if show:
-            display(HTML(html_content))
+            display(HTML(render_candidate_html(root_board, candidates, idx, user)))
 
     return info
 

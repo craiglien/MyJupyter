@@ -1,5 +1,66 @@
 # DECISIONS.md
 
+## Add a marimo candidate-picker notebook for game.py, scoped to Game side only
+Status: DECIDED
+
+After trimming the move-options display to the top candidate by default, the remaining
+complaint was that looking at a *different* candidate still required manually calling
+`explain_reply(board, info, candidate=N)` — an interaction-model gap, not a display one.
+Confirmed with the user this was specifically about not being able to click through
+candidates, not about game-position stepping (rebuilding `GameCursor` as buttons was
+explicitly declined for this pass) and not about converting `Position.ipynb` too
+(explicitly deferred). Marimo's reactive `mo.ui.table` (with `selection="single"`) is
+the natural fix: a clickable table where selecting a row reactively re-renders that
+candidate's detail, no re-running cells or typing indices.
+
+Scope decided: a new `notebooks/game_marimo.py`, not a full Jupyter replacement. Marimo
+runs *alongside* Jupyter in the same container on a second port
+(`MARIMO_PORT = HOST_PORT + 1`, i.e. 12346 by default — see `config.sh`), not replacing
+it; `entrypoint.sh` now backgrounds both `jupyter notebook` and `marimo edit` under
+`gosu`, with a `trap` forwarding `TERM`/`INT` to both PIDs so `docker stop`/Ctrl-C still
+shuts the container down cleanly.
+
+`notebooks/position.py`'s `_display_ranked_moves()` was split into two new public,
+display-side-effect-free functions so both Jupyter and marimo can reuse the same
+analysis/rendering logic without duplicating it: `rank_candidates(root_board, info)`
+(the existing per-candidate fact-building, lifted out unchanged) and
+`render_candidate_html(root_board, candidates, idx, user)` (the existing per-candidate
+board-diagram-plus-text HTML building, lifted out unchanged — returns the HTML string
+instead of calling `display()`, so Jupyter wraps it in `display(HTML(...))` and marimo
+wraps the identical string in `mo.Html(...)`). `_display_ranked_moves()` itself calls
+both internally; its own behavior for existing Jupyter callers (`Position.ipynb`,
+`Game.ipynb`, `Game.debug.ipynb`) is unchanged — verified via the same real-engine
+Fool's Mate check used earlier this session (`GameCursor.explain()` still renders 1
+table + 1 detail block, unchanged). `position.py` bumped `0.3.0` → `0.4.0` (MINOR — new
+public functions only).
+
+`game_marimo.py` deliberately doesn't use `GameCursor` — it reads `records` (from
+`game.sweep_game()`, already side-effect-free) directly via a plain `ply_index`
+variable, since `GameCursor`'s `.next()`/`.prev()` machinery is built around Jupyter's
+cell-by-cell re-run model and wasn't part of this pass's scope. It also doesn't port
+`show_sweep()`'s eval chart or `show_critical_moments()`'s auto-flagged moments — both
+are Jupyter/`display()`-only today; `game_marimo.py` only covers "look at one position's
+ranked candidates," not the full `analyze_game()` experience.
+
+Verified against the real engine (rebuilt image, `docker exec` — not just import checks):
+`rank_candidates()`/`render_candidate_html()` return correct data/HTML for Fool's Mate's
+opening position (5 ranked candidates, e.g. `e5 +0.76`/`d5 +0.51`/...), and simulating a
+non-default row selection (rank 3) correctly renders that candidate's own detail via the
+same code path the marimo notebook's detail cell uses. Also confirmed both `jupyter
+notebook` and `marimo edit` start together in the rebuilt image without one blocking the
+other, on a temporary alternate port pair so the user's already-running container (from
+browser-testing the earlier display fix) wasn't disturbed.
+
+One implementation snag worth recording: marimo's static analysis treats a name bound
+inside a list-comprehension in one cell and reassigned in another cell as an ambiguous
+multiple-definition ("this notebook has errors") even though Python's own comprehension
+scoping wouldn't actually leak it — `game_marimo.py`'s candidate-table cell had to rename
+its loop variable (`idx` → `rank`) to avoid colliding with the detail cell's `idx`.
+Marimo also isn't version-pinned in the Dockerfile (matches the project's existing
+convention for every other pip package except `httpx<0.24`); the image built with
+marimo `0.23.16`, not the `0.19.6` used to draft this design — re-verify `mo.ui.table`'s
+API and `marimo edit`'s CLI flags if either changes behavior on a future rebuild.
+
 ## Build Stockfish from source instead of shipping a pre-built binary
 Status: DECIDED
 

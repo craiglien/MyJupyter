@@ -25,10 +25,24 @@ fi
 
 chown ${U}:${G} /app
 
-PORT=${JUPYTER_PORT:-8888}
+JUPYTER_PORT_VAL=${JUPYTER_PORT:-8888}
+MARIMO_PORT_VAL=${MARIMO_PORT:-8889}
 
 #gosu ${U} id
 #gosu ${U} ls -l /app
-#echo gosu ${U} jupyter notebook --ip=0.0.0.0 --port=${PORT} --no-browser --allow-root
+#echo gosu ${U} jupyter notebook --ip=0.0.0.0 --port=${JUPYTER_PORT_VAL} --no-browser --allow-root
 #/bin/bash
-exec gosu ${U} jupyter notebook --ip=0.0.0.0 --port=${PORT} --no-browser --allow-root --NotebookApp.token=''
+
+# Two long-running servers now share the container, so this can no longer be
+# a single `exec`. Background both under gosu, forward TERM/INT to both PIDs
+# so `docker stop`/Ctrl-C still shuts down cleanly, and bring the container
+# down if either process dies unsupervised rather than limping along with
+# just one server up.
+gosu ${U} jupyter notebook --ip=0.0.0.0 --port=${JUPYTER_PORT_VAL} --no-browser --allow-root --NotebookApp.token='' &
+JUPYTER_PID=$!
+
+gosu ${U} marimo edit /app/game_marimo.py --headless --no-token --host 0.0.0.0 --port ${MARIMO_PORT_VAL} &
+MARIMO_PID=$!
+
+trap 'kill -TERM $JUPYTER_PID $MARIMO_PID 2>/dev/null' TERM INT
+wait -n $JUPYTER_PID $MARIMO_PID

@@ -84,6 +84,8 @@ RUN pip install "httpx<0.24"
 
 RUN pip install --prefer-binary chess
 
+RUN pip install marimo
+
 COPY --from=stockfish-build /build/src/stockfish /usr/bin/stockfish
 
 WORKDIR /app

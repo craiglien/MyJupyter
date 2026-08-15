@@ -1,5 +1,32 @@
 # DECISIONS.md
 
+## Swap game_marimo.py's candidate picker from mo.ui.table to mo.ui.radio
+Status: DECIDED
+
+Reported after actually clicking around in the browser: `mo.ui.table(selection="single")`
+rendered as checkboxes, not radio buttons, and clicking one appeared to do nothing —
+the row stayed effectively unselected. Root cause not fully chased down (no browser
+automation available this session to inspect the live DOM/network traffic directly),
+but traced the visible "not selected" text to react-aria's own `deselectedItem`
+accessibility announcement string (`"${item} not selected."`), bundled in marimo's
+frontend — i.e. some part of the table's selection-column interaction wasn't behaving
+as a normal committed selection.
+
+Rather than debug marimo's table-selection internals further, switched to `mo.ui.radio`
+— it's what was actually asked for ("radio boxes"), and its `.value` binding is a much
+simpler value round-trip (selected label's mapped value) than a table's list-of-selected-
+row-dicts. `game_marimo.py`'s candidate-table cell now builds
+`options = {"1. e5 — +0.76 (...)": 1, ...}` (label to rank) and
+`mo.ui.radio(options=options, value=next(iter(options)))`; the detail cell reads
+`candidate_radio.value` directly as the rank index — no more unpacking a selected-rows
+list.
+
+Verified against the real engine in the running container: simulated a frontend
+selection change via the widget's own `_update()` method (the same path a real
+websocket message from the browser drives), confirmed `.value` updates correctly and
+`render_candidate_html()` renders the newly-selected candidate. Real click-in-browser
+confirmation is still the user's to do — see `TASKS.md`.
+
 ## Add a marimo candidate-picker notebook for game.py, scoped to Game side only
 Status: DECIDED
 

@@ -5,10 +5,10 @@
 
 ## Up next
 - Visually confirm `notebooks/game_marimo.py`'s candidate picker in the browser
-  (`http://localhost:$MARIMO_PORT` — 12346 by default, see `config.sh`). The underlying
-  mechanics are already verified end to end against the real engine (real Stockfish
-  candidate ranking, row-selection-to-detail mapping — see `DECISIONS.md`); what's left
-  is confirming clicking a table row actually feels like the fix it's meant to be.
+  (`http://localhost:$MARIMO_PORT` — 12346 by default, see `config.sh`). Switched from
+  `mo.ui.table` (rendered as checkboxes, selection wasn't registering — see
+  `DECISIONS.md`) to `mo.ui.radio`; underlying mechanics re-verified end to end against
+  the real engine, but this still needs actual eyes-on-it-in-the-browser confirmation.
 - Decide on a workflow fix for the `Game.ipynb` autosave-clobbering risk: a live browser
   tab's autosave can silently overwrite direct file edits to the same notebook, and vice
   versa. Happened once already this session. See `DECISIONS.md`. Note: `game_marimo.py`

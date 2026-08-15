@@ -69,25 +69,20 @@ def _(board, position):
 
 @app.cell
 def _(candidates, mo, position):
-    rows = [
-        {
-            "rank": rank,
-            "move": c["san"],
-            "score": c["score_text"],
-            "gap": c["gap_text"],
-            "type": position.move_tag(c["class_info"]),
-        }
+    options = {
+        f"{rank}. {c['san']} — {c['score_text']} (gap {c['gap_text']}, {position.move_tag(c['class_info'])})": rank
         for rank, c in enumerate(candidates, start=1)
-    ]
-    candidates_table = mo.ui.table(data=rows, selection="single", label="Candidate moves")
-    candidates_table
-    return (candidates_table,)
+    }
+    candidate_radio = mo.ui.radio(
+        options=options, value=next(iter(options)), label="Candidate moves"
+    )
+    candidate_radio
+    return (candidate_radio,)
 
 
 @app.cell
-def _(board, candidates, candidates_table, mo, position):
-    selected = candidates_table.value
-    idx = selected[0]["rank"] if selected else 1
+def _(board, candidate_radio, candidates, mo, position):
+    idx = candidate_radio.value
     mo.Html(position.render_candidate_html(board.board, candidates, idx, board.user))
     return
 

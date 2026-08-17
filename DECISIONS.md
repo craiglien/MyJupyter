@@ -1,5 +1,30 @@
 # DECISIONS.md
 
+## Add Next/Prev buttons to game_marimo.py, ahead of schedule
+Status: DECIDED
+
+Discovered through actual use, not planned: `ply_index` was a fixed variable (always
+`0`), so `game_marimo.py` only ever showed the position after White's first move and
+Black's candidate replies there — it never advanced to show the rest of a game. This
+had been deliberately deferred as a backlog item ("button-based ply stepping"), but the
+user hit the gap immediately while testing, so pulled it forward rather than leaving
+them with only the "manually edit `ply_index` and re-run" workaround.
+
+Implemented with `mo.state()` + two `mo.ui.button`s, the exact getter/setter/button
+pattern marimo's own documentation uses for counters — `get_ply, set_ply = mo.state(0)`
+in one cell; a second cell's Next/Prev buttons call `set_ply(lambda v: ...)` clamped to
+`[0, len(records) - 1]`; the board-rendering cell reads `get_ply()` and re-runs whenever
+`set_ply` fires elsewhere, per marimo's documented reactive-state semantics. Considered
+`mo.ui.slider` instead (simpler, no state cycle, and marimo's own docs suggest
+preferring plain reactive widgets over `mo.state()` where possible) but the user asked
+for buttons specifically, matching `GameCursor`'s `.next()`/`.prev()` mental model
+they're already used to from Jupyter.
+
+Verified the clamping logic against the real engine (Fool's Mate, 4 plies): simulated 5
+Next clicks correctly advances ply 0→1→2→3 then clamps at 3 (the final `Qh4#`); 5 Prev
+clicks correctly returns to 0 and clamps there. Notebook re-validated as
+`status: valid` (no static errors) after the change.
+
 ## Swap game_marimo.py's candidate picker from mo.ui.table to mo.ui.radio
 Status: DECIDED
 

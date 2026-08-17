@@ -10,7 +10,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.4.0"
+__ver__ = "0.4.1"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -310,7 +310,17 @@ def _analyze(root_board, multipv=5, time_limit=2.0):
     re-running a notebook cell against a position just analyzed doesn't
     re-hit Stockfish for the full time_limit. Shared by moves() and
     explain_reply() so both go through the same engine-invocation and
-    caching path."""
+    caching path.
+
+    Returns [] without touching the engine if root_board has no legal
+    moves (checkmate/stalemate) — Stockfish's own no-legal-moves fallback
+    reports a bare score with no "pv", which _serialize_info() can't
+    round-trip (KeyError: 'pv'). There's nothing to analyze in a finished
+    position anyway; callers already handle an empty/game-over result
+    (see _display_ranked_moves())."""
+    if root_board.is_game_over():
+        return []
+
     fen = root_board.fen()
     cache = _load_cache()
     with open_engine() as engine:

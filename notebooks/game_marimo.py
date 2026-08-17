@@ -38,16 +38,29 @@ def _(game, pgn_text):
 
 
 @app.cell
-def _():
-    # Which ply to look at. Plain variable, not a widget, for this pass —
-    # stepping through the game with buttons is a separate future task.
-    ply_index = 0
-    return (ply_index,)
+def _(mo):
+    # Which ply to look at. mo.state() + buttons, so Next/Prev step through
+    # the game reactively — see the marimo tutorial's counter example for
+    # this exact getter/setter/button pattern.
+    get_ply, set_ply = mo.state(0)
+    return get_ply, set_ply
 
 
 @app.cell
-def _(chess, mo, ply_index, position, records):
-    r = records[ply_index]
+def _(mo, records, set_ply):
+    prev_button = mo.ui.button(
+        label="◀ Prev", on_click=lambda _: set_ply(lambda v: max(v - 1, 0))
+    )
+    next_button = mo.ui.button(
+        label="Next ▶", on_click=lambda _: set_ply(lambda v: min(v + 1, len(records) - 1))
+    )
+    mo.hstack([prev_button, next_button], justify="start")
+    return next_button, prev_button
+
+
+@app.cell
+def _(chess, get_ply, mo, position, records):
+    r = records[get_ply()]
     board = position.make(r["fen_after"], "w")
 
     move_label = f"{r['move_number']}{'.' if r['mover'] == 'White' else '...'}"

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.6"
+__generated_with = "0.23.16"
 app = marimo.App()
 
 
@@ -21,13 +21,9 @@ def _():
     # Edit and re-run to try a different game — same "paste a full PGN,
     # headers and all" convention as Position.ipynb/Game.ipynb.
     pgn_text = """
-[Event "Fool's Mate"]
-[White "Amateur"]
-[Black "Amateur"]
-[Result "0-1"]
-
-1. f3 e5 2. g4 Qh4# 0-1
-"""
+    1. e4 e5 2. Nc3 Nf6 3. Nf3 Bb4 4. a3 Bxc3 5. bxc3 d5 6. exd5 Nxd5 7. Nxe5 Qe7 8.
+    Qe2 O-O *
+    """
     return (pgn_text,)
 
 
@@ -41,41 +37,73 @@ def _(game, pgn_text):
 def _(mo):
     # Which ply to look at. mo.state() + buttons, so Next/Prev step through
     # the game reactively — see the marimo tutorial's counter example for
-    # this exact getter/setter/button pattern.
-    get_ply, set_ply = mo.state(0)
+    # this exact getter/setter/button pattern. allow_self_loops=True so the
+    # button cell below (which calls set_ply) still re-runs on its own
+    # clicks — needed to keep the First/Last disabled state current, since
+    # marimo otherwise excludes a state setter's own caller cell from the
+    # rerun it triggers.
+    get_ply, set_ply = mo.state(0, allow_self_loops=True)
     return get_ply, set_ply
 
 
 @app.cell
-def _(mo, records, set_ply):
+def _(get_ply, mo, records, set_ply):
+    # A static caption here, not a live ply count — the live "ply X of N"
+    # indicator lives in the board cell below instead, which is simpler
+    # since it only reads get_ply() and never calls set_ply.
+    #
+    # Named button_ply, not ply — the board cell below also does
+    # `ply = get_ply()`, and marimo treats the same top-level name assigned
+    # in two cells as a namespace conflict (both cells get marked "CELL NOT
+    # RUN"), the same class of collision noted in DECISIONS.md for the
+    # candidate-table cell's loop variable.
+    button_ply = get_ply()
+    first_button = mo.ui.button(
+        label="⏮ First", on_click=lambda _: set_ply(lambda v: 0), disabled=button_ply == 0
+    )
     prev_button = mo.ui.button(
         label="◀ Prev", on_click=lambda _: set_ply(lambda v: max(v - 1, 0))
     )
     next_button = mo.ui.button(
         label="Next ▶", on_click=lambda _: set_ply(lambda v: min(v + 1, len(records) - 1))
     )
-    mo.hstack([prev_button, next_button], justify="start")
-    return next_button, prev_button
+    last_button = mo.ui.button(
+        label="Last ⏭",
+        on_click=lambda _: set_ply(lambda v: len(records) - 1),
+        disabled=button_ply == len(records) - 1,
+    )
+    mo.vstack([
+        mo.md("### Step through the game"),
+        mo.hstack([first_button, prev_button, next_button, last_button], justify="start"),
+    ])
+    return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(chess, get_ply, mo, position, records):
-    r = records[get_ply()]
+    ply = get_ply()
+    r = records[ply]
     board = position.make(r["fen_after"], "w")
 
     move_label = f"{r['move_number']}{'.' if r['mover'] == 'White' else '...'}"
     board_svg = chess.svg.board(board=board.board, size=300, orientation=board.user)
 
     mo.vstack([
-        mo.md(f"**{move_label}{r['san']}** — {r['quality']} ({r['white_eval_display']})"),
+        mo.md(f"**Move {ply + 1} of {len(records)}: {move_label}{r['san']}** — "
+              f"{r['quality']} ({r['white_eval_display']})"),
         mo.Html(board_svg),
     ])
     return (board,)
 
 
 @app.cell
-def _(board, position):
+def _(board, mo, position):
     info = position.moves(board, show=False)
+    # No legal moves at this ply (game-ending checkmate/stalemate move, e.g.
+    # the last ply of a decisive game) — nothing to rank or show a picker
+    # for. mo.stop() shows this message in place of the cell's output and
+    # skips the candidate-picker/detail cells below rather than erroring.
+    mo.stop(not info, mo.md("*Game over — no candidate moves at this position.*"))
     candidates = position.rank_candidates(board.board, info)
     return (candidates,)
 

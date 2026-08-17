@@ -1,5 +1,91 @@
 # DECISIONS.md
 
+## marimo's floating run-all control can't be repositioned — noted, not fixed
+Status: DECIDED
+
+Raised after using `game_marimo.py` for real: marimo's "run all stale cells" button sits
+fixed in the bottom-right corner of the screen, with no editor setting to move it
+somewhere more prominent (e.g. near the top, closer to where JupyterLab's own run
+controls live in its toolbar). Confirmed via marimo's own docs — no configuration option
+exists for this; it's a fixed part of the app shell, not a per-notebook or per-user
+preference.
+
+No fix implemented (none available). Workaround: `Cmd/Ctrl+Shift+R` runs all stale cells
+from anywhere, `Cmd/Ctrl+Enter` runs just the focused cell (via a play button at that
+cell's own top-right, not the floating one), and `Cmd/Ctrl+K` opens a command palette.
+Worth remembering this is a plausible common complaint for anyone arriving at marimo
+from JupyterLab's more visible, top-anchored toolbar — the control layout genuinely
+moved, not just the run button.
+
+## Fix _analyze() crash on game-over positions; confirmed working in the browser
+Status: DECIDED
+
+Root cause: `_analyze()` (the multipv drill-down behind `moves()`/`rank_candidates()`)
+always called Stockfish, and Stockfish's own no-legal-moves response (for a
+checkmate/stalemate position) has no `"pv"` key — an assumption `_serialize_info()`
+baked in. This is a different code path than the one already checked safe in the
+"GameCursor end-to-end verification" decision above: that entry covered `sweep_game()`'s
+cheap per-ply eval (multipv=1), which Stockfish's fallback happens to handle fine.
+`_analyze()`'s multipv=5+ drill-down hit the same no-legal-moves case but didn't survive
+it — `KeyError: 'pv'`. Jupyter's `GameCursor` never triggered this (it only ever explains
+positions *before* a move, which always has a legal move to make); `game_marimo.py`'s
+board cell uses the position *after* a move (`fen_after`), which for a game's last ply
+can be checkmate — found by clicking Next through Fool's Mate (`1. f3 e5 2. g4 Qh4#`) to
+the final move.
+
+Fixed at the root: `_analyze()` now returns `[]` immediately if
+`root_board.is_game_over()`, without calling the engine at all. `game_marimo.py`'s
+analysis cell calls `mo.stop(not info, mo.md("*Game over — no candidate moves at this
+position.*"))` before building the candidate picker, so navigating to a game-ending ply
+shows that message instead of the picker/detail cells crashing downstream. Verified both
+via `docker exec` against the real engine and the real Fool's Mate PGN, and via a real
+marimo kernel export (`marimo export html` with the initial ply forced to the last one,
+confirming the `mo.stop` message renders and the two downstream cells show "wasn't run
+because an ancestor was stopped"). Confirmed a second time by the user directly in the
+browser, after restarting the marimo kernel (needed since the long-running kernel process
+had the old `position.py` cached in memory).
+
+Correcting an assumption from earlier in this same session: `game_marimo.py` does *not*
+get live-reloaded either. `entrypoint.sh` launches `marimo edit --headless` without
+`--watch`, so an external edit to the notebook file itself sits inert in the running
+kernel until a restart — same as any imported module. Confirmed directly this round: a
+fix landed on disk (see below) and the browser kept showing the pre-fix error until the
+container was restarted; a plain browser reload alone did nothing.
+
+Also polished the step-through UI while in there: a "### Step through the game" heading
+above the Next/Prev buttons (previously unlabeled, reported as feeling "in the middle of
+nowhere" with no context); a live "Move X of N" indicator in the board cell (reads
+`get_ply()` each render — kept there rather than the button cell, mainly for separation
+of concerns, not necessity); and First/Last buttons alongside Prev/Next
+(`set_ply(lambda v: 0)` / `set_ply(lambda v: len(records) - 1)`), so jumping straight to
+the start or end of a longer game doesn't mean clicking Next/Prev through every ply in
+between, each greyed out via `disabled=` once the game is already at that end.
+
+Getting the greyed-out state right needed `mo.state(0, allow_self_loops=True)`: by
+default, marimo excludes the cell that calls a state setter from the rerun that setter
+triggers, even if that same cell also reads the getter — the button cell calls
+`set_ply()` from its own `on_click` handlers, so without `allow_self_loops=True` its
+`disabled=` values would freeze at whatever they were on the very first render. With it,
+clicking any button re-runs the button cell too, recomputing `disabled=ply == 0` /
+`disabled=ply == len(records) - 1` against the new ply before redrawing.
+
+Shipping that greyed-out logic broke the notebook outright — a real bug, caught live in
+the browser via Playwright driving the actual running container (Chrome's own extension
+wasn't reachable this session; connected over CDP to a separate remote-debugging Chrome
+instance instead, `playwright.chromium.connect_over_cdp`). The button cell's `ply =
+get_ply()` collided with the board cell's own `ply = get_ply()` — marimo's static
+analysis treats the same top-level name assigned in two cells as a namespace conflict and
+refuses to run either ("CELL NOT RUN", "This cell redefines variables from other cells"),
+which cascaded into `NameError: name 'board' is not defined` downstream. The exact same
+class of collision already recorded above (the candidate-table cell's `idx`/`rank`
+rename) — renamed the button cell's copy to `button_ply` to fix it. Confirmed after a
+container restart: First greys out at ply 0, ungreys after Next/Last; Last greys out at
+the final ply, ungreys after Prev/First; the candidate radio picker still updates the
+board detail on click.
+
+`position.py` bumped `0.4.0` → `0.4.1` (PATCH — bug fix only, no signature/behavior
+change for any existing caller besides no longer crashing on a game-over position).
+
 ## Add Next/Prev buttons to game_marimo.py, ahead of schedule
 Status: DECIDED
 

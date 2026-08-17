@@ -4,12 +4,6 @@
 (none — paused; chess is a hobby project, picking back up whenever)
 
 ## Up next
-- Visually confirm `notebooks/game_marimo.py` in the browser
-  (`http://localhost:$MARIMO_PORT` — 12346 by default, see `config.sh`): the candidate
-  picker (`mo.ui.radio`, switched from a buggy `mo.ui.table` — see `DECISIONS.md`) and
-  the new Next/Prev buttons for stepping through the game. Both verified against the
-  real engine (correct candidate ranking, correct ply clamping at both ends of the
-  game), but neither has had actual eyes-on-it-in-the-browser confirmation yet.
 - Decide on a workflow fix for the `Game.ipynb` autosave-clobbering risk: a live browser
   tab's autosave can silently overwrite direct file edits to the same notebook, and vice
   versa. Happened once already this session. See `DECISIONS.md`. Note: `game_marimo.py`

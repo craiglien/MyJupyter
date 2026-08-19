@@ -10,7 +10,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.5.0"
+__ver__ = "0.6.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -415,6 +415,27 @@ def rank_candidates(root_board, info, best_score=None):
     return candidates
 
 
+def score_move(root_board, move, best_score=None, time_limit=2.0):
+    """Score one specific move via a root_moves-restricted _analyze() call
+    (see its docstring) and return it in the same per-candidate shape as
+    rank_candidates()/rank_dont_list(), plus a `quality` label. For
+    checking an arbitrary move that isn't already in the top-5 or the
+    don't-list — e.g. a "try your own move" input. `best_score` defaults
+    to this move's own score (nothing to grade it against); pass the
+    position's actual best score (e.g. candidates[0]["score"]) to grade
+    it against the real best move instead. Returns None if `move` turns
+    out to have no legal response to analyze from (shouldn't happen for
+    a legal move in a non-game-over position, but mirrors _analyze()'s
+    own empty-result contract rather than assuming)."""
+    info = _analyze(root_board, multipv=1, time_limit=time_limit, root_moves=[move])
+    if not info:
+        return None
+    candidate = rank_candidates(root_board, info, best_score=best_score)[0]
+    reference = best_score if best_score is not None else candidate["score"]
+    candidate["quality"] = gap_quality(reference, candidate["score"])
+    return candidate
+
+
 def _tempting_but_unranked_moves(root_board, top_moves):
     """Legal moves a human eye is drawn to — captures and checks — that
     aren't already among `top_moves` (the engine's own top picks). Real
@@ -512,7 +533,13 @@ def render_candidate_html(root_board, candidates, idx, user):
         size=300, orientation=user, lastmove=move))
 
     reasons = describe_move_reason(c["class_info"])
-    rank_note = "This is the engine's top choice." if idx == 1 \
+    # Gap-based, not idx == 1: idx is only "the top choice" when `candidates`
+    # is a real ranked list (rank_candidates()'s own output, where entry 1
+    # always has gap_text "0.00" by construction). score_move() also reuses
+    # this renderer for a single arbitrary move wrapped in a one-item list
+    # at idx=1, where that assumption doesn't hold — checking the actual gap
+    # keeps the note honest either way.
+    rank_note = "This is the engine's top choice." if c["gap_text"] == "0.00" \
         else f"{c['gap_note']} (Gap vs best: {c['gap_text']})"
 
     continuation_lines = _describe_continuation(temp_board, pv[1:], max_extra_plies=2)

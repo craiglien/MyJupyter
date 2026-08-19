@@ -4,6 +4,9 @@
 (none — paused; chess is a hobby project, picking back up whenever)
 
 ## Up next
+- Return to the game side (`game.py`/`game_marimo.py`/`Game.ipynb`) — not touched in the
+  last 48h (as of 2026-08-19) while attention has been on `position.py`/`Position.ipynb`,
+  which is now working well.
 - Decide on a workflow fix for the `Game.ipynb` autosave-clobbering risk: a live browser
   tab's autosave can silently overwrite direct file edits to the same notebook, and vice
   versa. Happened once already this session. See `DECISIONS.md`. Note: `game_marimo.py`

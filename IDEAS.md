@@ -77,13 +77,10 @@ imported under that name; see `DECISIONS.md`.)
 
 ## `game_marimo.py` candidate-picker UX ideas
 
-- "Don't" list (name TBD) — alongside the ranked good-move candidates, surface a short
-  list of tempting-looking but bad moves, so the picker warns you away from traps as well
-  as pointing you toward good moves. Basis: reuse the existing `move_tag`/quality
-  classification already computed for the candidate ranking (Best/Good/Inaccuracy/
-  Mistake/Blunder) rather than building new trap-detection analysis — filter for the
-  low-quality end of the same ranked list instead of a separate eval-swing check. Shown
-  as a preamble/caption above the candidate radio buttons in the picker cell.
+- "Don't" list (name TBD) — promoted to `TASKS.md`, design in progress there. (Original
+  framing here was wrong: the top-5 `multipv` candidate list can't supply these moves,
+  since multipv only ever returns strong moves — a real trap won't appear in it. Settled
+  on scoring a targeted set of tempting-looking moves instead, via `root_moves=`.)
 - Preview a candidate move "in play" — a way to see the board with a given candidate move
   actually made on it, without committing to it as the selected/analyzed line. Considered
   mechanism: right-click (or similar context menu) on an entry in the candidate radio

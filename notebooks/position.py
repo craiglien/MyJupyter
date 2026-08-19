@@ -10,7 +10,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.4.1"
+__ver__ = "0.5.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -108,6 +108,23 @@ def _gap_tier(gap_pawns):
         if gap_pawns <= threshold:
             return note, label
     return GAP_TIER_FALLBACK
+
+
+def gap_quality(best_score, this_score):
+    """Best/Good/Inaccuracy/Blunder label for how `this_score` compares to
+    `best_score` — the label _gap_tier() computes but describe_gap() below
+    discards (it only keeps the prose note). Mirrors describe_gap()'s own
+    mate-handling so the two always agree. Used by rank_dont_list() to
+    filter tempting moves down to the ones actually worth warning about."""
+    if best_score.is_mate() and this_score.is_mate():
+        return "Best" if this_score.mate() == best_score.mate() else "Inaccuracy"
+    if best_score.is_mate() and not this_score.is_mate():
+        return "Blunder"
+    if this_score.is_mate() and not best_score.is_mate():
+        return "Best" if this_score.mate() > 0 else "Blunder"
+    gap = (best_score.score() - this_score.score()) / 100
+    _, label = _gap_tier(gap)
+    return label
 
 
 def get_color(color):
@@ -305,12 +322,20 @@ def open_engine():
     return chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
 
-def _analyze(root_board, multipv=5, time_limit=2.0):
+def _analyze(root_board, multipv=5, time_limit=2.0, root_moves=None):
     """Run one multipv analysis pass, cached on disk (see _CACHE_PATH) so
     re-running a notebook cell against a position just analyzed doesn't
     re-hit Stockfish for the full time_limit. Shared by moves() and
     explain_reply() so both go through the same engine-invocation and
     caching path.
+
+    `root_moves`, if given, restricts the search to that list of
+    chess.Move (UCI's "searchmoves") instead of a full-board sweep — used
+    by rank_dont_list() to score specific tempting-looking moves that a
+    full-board multipv sweep wouldn't surface (multipv only ever returns
+    strong moves). `multipv` is capped to len(root_moves) in that case,
+    and the cache key includes the move list so a root_moves-restricted
+    result never collides with a full-board one for the same position.
 
     Returns [] without touching the engine if root_board has no legal
     moves (checkmate/stalemate) — Stockfish's own no-legal-moves fallback
@@ -325,10 +350,16 @@ def _analyze(root_board, multipv=5, time_limit=2.0):
     cache = _load_cache()
     with open_engine() as engine:
         version = _engine_version(engine)
-        key = f"{version}|{multipv}|{time_limit}|{fen}"
+        if root_moves is not None:
+            multipv = min(multipv, len(root_moves))
+            moves_key = ",".join(sorted(mv.uci() for mv in root_moves))
+            key = f"{version}|{multipv}|{time_limit}|{fen}|root:{moves_key}"
+        else:
+            key = f"{version}|{multipv}|{time_limit}|{fen}"
         if key in cache:
             return _deserialize_info(cache[key]["info"], root_board.turn)
-        info = engine.analyse(root_board, chess.engine.Limit(time=time_limit), multipv=multipv)
+        info = engine.analyse(root_board, chess.engine.Limit(time=time_limit), multipv=multipv,
+                               root_moves=root_moves)
     cache[key] = {"info": _serialize_info(info), "timestamp": time.time()}
     _save_cache(cache)
     return info
@@ -353,14 +384,20 @@ def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
     return lines
 
 
-def rank_candidates(root_board, info):
+def rank_candidates(root_board, info, best_score=None):
     """Per-candidate facts (move, score, san, class_info, score_text,
     eval_text, gap_text, gap_note) for each entry in `info`, ranked in the
     order the engine returned them (best first). Pure — no display, no
     engine call. Shared by _display_ranked_moves() (Jupyter) and any other
     caller that wants the same ranking without Jupyter's display() side
-    effects, e.g. a marimo notebook building its own candidate-picker UI."""
-    best_score = info[0]["score"].relative
+    effects, e.g. a marimo notebook building its own candidate-picker UI.
+
+    `best_score` defaults to info[0]'s own score (the best of `info`
+    itself). rank_dont_list() passes the real best-of-position score
+    explicitly instead, so tempting moves are graded against the actual
+    best move rather than the best of the tempting subset."""
+    if best_score is None:
+        best_score = info[0]["score"].relative
 
     candidates = []
     for move_info in info:
@@ -376,6 +413,85 @@ def rank_candidates(root_board, info):
             "gap_text": gap_text, "gap_note": gap_note,
         })
     return candidates
+
+
+def _tempting_but_unranked_moves(root_board, top_moves):
+    """Legal moves a human eye is drawn to — captures and checks — that
+    aren't already among `top_moves` (the engine's own top picks). Real
+    traps live here: multipv's own top-N search only ever returns strong
+    moves, so it can't surface them. Candidate pool for the "don't" list;
+    scored separately via a root_moves-restricted _analyze() call. (Moves
+    toward the center are a plausible third category but don't have a
+    concrete rule yet — see TASKS.md.)"""
+    return [
+        mv for mv in root_board.legal_moves
+        if mv not in top_moves and (root_board.is_capture(mv) or root_board.gives_check(mv))
+    ]
+
+
+def rank_dont_list(root_board, good_info, max_dont=3, time_limit=2.0):
+    """Tempting-looking moves that are actually bad: captures/checks not
+    among the engine's own top picks (`good_info`, from _analyze()),
+    scored via a root_moves-restricted _analyze() call and filtered down
+    to the Inaccuracy/Blunder tier, worst first, capped to `max_dont`.
+    Same per-candidate shape as rank_candidates() plus a `quality` label.
+    Returns [] if there's nothing tempting-and-bad worth warning about —
+    either no such moves exist, or none of them are actually bad enough."""
+    if not good_info:
+        return []
+
+    top_moves = {entry["pv"][0] for entry in good_info}
+    tempting = _tempting_but_unranked_moves(root_board, top_moves)
+    if not tempting:
+        return []
+
+    tempting_info = _analyze(root_board, multipv=len(tempting), time_limit=time_limit,
+                              root_moves=tempting)
+    if not tempting_info:
+        return []
+
+    best_score = good_info[0]["score"].relative
+    candidates = rank_candidates(root_board, tempting_info, best_score=best_score)
+    for c in candidates:
+        c["quality"] = gap_quality(best_score, c["score"])
+
+    bad = [c for c in candidates if c["quality"] in ("Inaccuracy", "Blunder")]
+    bad.sort(key=lambda c: c["score"].score() if not c["score"].is_mate()
+              else (10**6 if c["score"].mate() > 0 else -10**6))
+    return bad[:max_dont]
+
+
+def render_dont_html(root_board, dont_candidates, idx, user):
+    """The board-diagram-plus-text detail block for don't-list entry `idx`
+    (1-indexed into rank_dont_list()'s output) — same shape as
+    render_candidate_html() below, but framed as a warning: what makes
+    the move tempting, then the punishing continuation that makes it
+    actually bad, reusing _describe_continuation() on the same pv data."""
+    c = dont_candidates[idx - 1]
+    move, pv = c["move"], c["move_info"]["pv"]
+
+    temp_board = root_board.copy()
+    temp_board.push(move)
+
+    svg_move = _pieces_over_arrows(chess.svg.board(
+        temp_board, arrows=[(move.from_square, move.to_square)],
+        size=300, orientation=user, lastmove=move))
+
+    tempting_reasons = describe_move_reason(c["class_info"])
+    warning = f"Looks tempting — {' '.join(tempting_reasons)}"
+    verdict = f"{c['quality']}: {c['gap_note']} (Gap vs best: {c['gap_text']})"
+
+    continuation_lines = _describe_continuation(temp_board, pv[1:], max_extra_plies=2)
+
+    mv_out = f"{idx}. {c['san']} ({move.uci()}) &mdash; {c['score_text']}"
+    detail_lines = [warning, f"Eval: {c['eval_text']}", verdict] + continuation_lines
+    detail_out = "<hr>".join(detail_lines)
+
+    return f"""
+    <div style="display: flex; align-items: center;">
+    <div>{svg_move}</div>
+    <div style="margin-left: 20px; font-size: 16px; color: #a33;">{mv_out}<hr>{detail_out}</div>
+    </div>"""
 
 
 def render_candidate_html(root_board, candidates, idx, user):

@@ -49,3 +49,11 @@ and a locally-built Stockfish engine.
   this project already hit once — see `DECISIONS.md`). `stockfish/src` (source) is tracked;
   `stockfish-bin` (compiled artifact) is gitignored.
 - `notebooks/__marimo__/` is a marimo runtime/session-state dir — gitignored, do not commit.
+- `git add` explicit file paths only, never a directory (`git add -A`/`git add .`) — avoids
+  accidentally staging unrelated in-progress edits (e.g. the user's own live notebook edits).
+- Never install software via pipe-to-shell (`curl|bash`, `wget -O- | sh`, etc.); prefer
+  verified release artifacts and explicit installation steps, matching how Stockfish is
+  already built from vendored source rather than downloaded and piped.
+- `README.md` must document what the project is, how it's structured, and how it's run,
+  built, and tested — any command the user is meant to run themselves belongs there,
+  copy-pasteable and kept up to date. Currently a stub; see `TASKS.md`.

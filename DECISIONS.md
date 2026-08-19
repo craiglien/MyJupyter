@@ -1,5 +1,40 @@
 # DECISIONS.md
 
+## "Don't" list implemented in position.py/game_marimo.py; confirmed working in the browser
+Status: DECIDED
+
+Built the design from `TASKS.md`: `position.py` gained `gap_quality()` (surfaces the
+Best/Good/Inaccuracy/Blunder label `_gap_tier()` computed but `describe_gap()` discarded),
+a `root_moves=` param on `_analyze()` (UCI searchmoves — the cache key includes the move
+list so it can't collide with a full-board result for the same position), an optional
+`best_score=` override on `rank_candidates()`, and three new functions:
+`_tempting_but_unranked_moves()` (captures/checks not already in the top-5 PV — "moves
+toward the center" stayed out of scope, see `TASKS.md` backlog), `rank_dont_list()`
+(scores that pool via `root_moves`, filters to Inaccuracy/Blunder, worst-first, capped at
+3), and `render_dont_html()` (reuses `_describe_continuation()` for the punishing
+sequence — the same function `render_candidate_html()` already uses for the selected good
+candidate). `position.py` bumped `0.4.1` → `0.5.0` (new backwards-compatible functions/
+params). `game_marimo.py` got one new cell: a "Tempting, but don't" area above the
+candidate radio list, empty (via `mo.stop()`) when there's nothing to warn about.
+
+Verified offline first (a monkeypatched smoke test against the pure selection/filtering/
+rendering logic, no engine involved), then live against the real engine by stepping
+through the game currently loaded in `game_marimo.py`, ply by ply, via Playwright/CDP
+(the Claude-in-Chrome extension still isn't connecting this session; same go-chrome-remote
+CDP workaround as the earlier game-over-crash verification). Confirmed: empty output on
+quiet positions with nothing tempting-and-bad; correct population on positions with real
+traps, e.g. 3.Nf3 candidates flag ...Nxe4?? as a Blunder (gap −2.71 pawns) with the
+continuation "Engine expects White's reply ... "; later in the same game, 5...Nxe4 at a
+different position graded only Inaccuracy (gap far smaller), confirming the tier boundary
+actually discriminates rather than dumping everything into one bucket; a knight fork
+attempt (Nxf7) was correctly flagged as a Blunder with its refutation (...Qxf7) rendered.
+No errors in the notebook's own error counter across the full step-through. One process
+note: each ply's don't-list needs a second, separate Stockfish call (`open_engine()` is
+per-call, not held open) on top of the good-candidates call, so it's slower to settle
+than the existing candidate picker — a fast poll loop while scripting the verification
+caught this as apparent "false negatives" before the second call had finished; not a bug,
+just something to allow for if scripting against the live notebook again.
+
 ## Reconcile the orphaned GUARDRAIL.loc.md into the four-file framework
 Status: DECIDED
 

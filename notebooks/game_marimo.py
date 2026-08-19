@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.16"
-app = marimo.App()
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -113,22 +113,31 @@ def _(board, mo, position):
 def _(board, dont_candidates, mo, position):
     # Tempting-looking-but-bad moves, shown above the good candidates —
     # see rank_dont_list()'s own docstring for why these can't come from
-    # the same top-5 multipv list the good candidates use. Empty output
-    # (via mo.stop) when there's nothing tempting-and-bad to warn about.
-    mo.stop(not dont_candidates, mo.md(""))
-    dont_blocks = "<hr>".join(
-        position.render_dont_html(board.board, dont_candidates, idx, board.user)
-        for idx in range(1, len(dont_candidates) + 1)
-    )
+    # the same top-5 multipv list the good candidates use. Always shows
+    # something, even when there's nothing to warn about (common early
+    # in the game, when there just aren't many captures/checks on offer
+    # yet) — otherwise an empty section reads as broken, not "checked,
+    # nothing found."
+    if dont_candidates:
+        dont_blocks = "<hr>".join(
+            position.render_dont_html(board.board, dont_candidates, idx, board.user)
+            for idx in range(1, len(dont_candidates) + 1)
+        )
+        dont_body = mo.Html(dont_blocks)
+    else:
+        dont_body = mo.md("*Nothing tempting-and-bad stands out here.*")
     mo.vstack([
         mo.md("### Tempting, but don't"),
-        mo.Html(dont_blocks),
+        dont_body,
     ])
     return
 
 
 @app.cell
 def _(candidates, mo, position):
+    # No bare display here — this cell's output is composed into the
+    # side-by-side layout below instead, alongside the try-your-own-move
+    # column, so it needs to stay silent on its own.
     options = {
         f"{rank}. {c['san']} — {c['score_text']} (gap {c['gap_text']}, {position.move_tag(c['class_info'])})": rank
         for rank, c in enumerate(candidates, start=1)
@@ -136,14 +145,84 @@ def _(candidates, mo, position):
     candidate_radio = mo.ui.radio(
         options=options, value=next(iter(options)), label="Candidate moves"
     )
-    candidate_radio
     return (candidate_radio,)
 
 
 @app.cell
 def _(board, candidate_radio, candidates, mo, position):
     idx = candidate_radio.value
-    mo.Html(position.render_candidate_html(board.board, candidates, idx, board.user))
+    detail_html = mo.Html(position.render_candidate_html(board.board, candidates, idx, board.user))
+    return (detail_html,)
+
+
+@app.cell
+def _(board, mo):
+    # References board (not just for the label) so this cell — and the
+    # text/button instances it creates — reruns on every ply change,
+    # resetting whatever was typed. A SAN move only means something for
+    # the exact position it was typed against. No bare display — composed
+    # into the side-by-side layout below.
+    mover_label = "White" if board.board.turn else "Black"
+    move_text = mo.ui.text(label=f"Try a move for {mover_label} (SAN, e.g. Nxe5)",
+                            placeholder="Nxe5")
+    analyze_button = mo.ui.run_button(label="Analyze")
+    return analyze_button, move_text
+
+
+@app.cell
+def _(analyze_button, board, candidates, mo, move_text, position):
+    # if/else instead of mo.stop() — this cell's result now feeds the
+    # combining layout below rather than displaying itself, so `result`
+    # must always be bound and returned, including on the no-click and
+    # empty-input paths (mo.stop()'s early exit would skip the return
+    # entirely, leaving `result` undefined for that cell's downstream
+    # consumer). Still only reaches score_move()'s engine call on an
+    # actual click — analyze_button.value is only True on the run
+    # immediately following one.
+    if not analyze_button.value:
+        result = mo.md("")
+    else:
+        text = move_text.value.strip()
+        if not text:
+            result = mo.md("*Type a move first.*")
+        else:
+            try:
+                move = board.board.parse_san(text)
+            except ValueError as e:
+                result = mo.md(f"*Not a legal move here — {e}*")
+            else:
+                existing = next(
+                    (i for i, c in enumerate(candidates, start=1) if c["move"] == move), None
+                )
+                if existing is not None:
+                    result = mo.md(
+                        f"*That's already candidate {existing} above "
+                        f"({candidates[existing - 1]['san']}).*"
+                    )
+                else:
+                    custom = position.score_move(board.board, move, best_score=candidates[0]["score"])
+                    result = mo.Html(position.render_candidate_html(board.board, [custom], 1, board.user))
+    return (result,)
+
+
+@app.cell
+def _(analyze_button, candidate_radio, detail_html, mo, move_text, result):
+    # Side by side, per explicit request: candidate picker on the left,
+    # try-your-own-move on the right — so the result renders right next
+    # to the button that produced it, not scrolled away below.
+    mo.hstack(
+        [
+            mo.vstack([candidate_radio, detail_html]),
+            mo.vstack([
+                mo.md("### Try your own move"),
+                mo.hstack([move_text, analyze_button], justify="start"),
+                result,
+            ]),
+        ],
+        justify="start",
+        align="start",
+        gap=2,
+    )
     return
 
 

@@ -11,6 +11,9 @@
   itself is still Jupyter and still exposed to it.
 
 ## Backlog
+- Flesh out `README.md` (currently a 16-byte stub) per the content rule in `CLAUDE.md`:
+  what the project is, how it's structured, and copy-pasteable, up-to-date build/run/test
+  commands.
 - `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
   see IDEAS.md's Idea 3 (deferred).
 - Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit

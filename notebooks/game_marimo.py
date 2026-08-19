@@ -105,7 +105,26 @@ def _(board, mo, position):
     # skips the candidate-picker/detail cells below rather than erroring.
     mo.stop(not info, mo.md("*Game over — no candidate moves at this position.*"))
     candidates = position.rank_candidates(board.board, info)
-    return (candidates,)
+    dont_candidates = position.rank_dont_list(board.board, info)
+    return candidates, dont_candidates
+
+
+@app.cell
+def _(board, dont_candidates, mo, position):
+    # Tempting-looking-but-bad moves, shown above the good candidates —
+    # see rank_dont_list()'s own docstring for why these can't come from
+    # the same top-5 multipv list the good candidates use. Empty output
+    # (via mo.stop) when there's nothing tempting-and-bad to warn about.
+    mo.stop(not dont_candidates, mo.md(""))
+    dont_blocks = "<hr>".join(
+        position.render_dont_html(board.board, dont_candidates, idx, board.user)
+        for idx in range(1, len(dont_candidates) + 1)
+    )
+    mo.vstack([
+        mo.md("### Tempting, but don't"),
+        mo.Html(dont_blocks),
+    ])
+    return
 
 
 @app.cell

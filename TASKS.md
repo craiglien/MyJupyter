@@ -8,11 +8,12 @@
   last 48h (as of 2026-08-19) while attention has been on `position.py`/`Position.ipynb`,
   which is now working well.
 - "Don't" list for the candidate picker (promoted from `IDEAS.md`, design in progress):
-  alongside the top-5 good candidates, show a short list of tempting-looking-but-bad moves
-  with a one-line reason each. Correction to the original idea: the top-5 `multipv` list
-  can't supply these moves, since multipv only ever returns strong moves — a real trap
-  (a capture that hangs a piece, a natural push that drops material) won't appear in it.
-  Mechanism decided: score only "tempting-looking" moves, not every legal move.
+  a dedicated area shown *before* the top-5 good candidates, listing tempting-looking-but-
+  bad moves, each explained in the same depth the good candidates already get — not just a
+  one-line reason. Correction to the original idea: the top-5 `multipv` list can't supply
+  these moves, since multipv only ever returns strong moves — a real trap (a capture that
+  hangs a piece, a natural push that drops material) won't appear in it. Mechanism decided:
+  score only "tempting-looking" moves, not every legal move.
   - Selection heuristic (which moves count as "tempting"): captures and checks not
     already in the top-5 PV are the clear cases. "Moves toward the center" still needs a
     concrete rule (e.g. destination square in the central 4 or 16 squares?) — open.
@@ -21,11 +22,17 @@
     tempting-move subset (`multipv=len(subset)`) instead of a full-board multipv sweep.
     `position.py`'s `_analyze()` doesn't expose `root_moves` yet; would need extending
     (or a sibling function) to accept it.
+  - Explanation depth: each don't-list entry's "why" must include the 2-3-ply punishing
+    sequence, not just a static eval number — e.g. "looks tempting because it captures the
+    pawn, but after ...Qd4! forking the knight and rook, White wins material." Stockfish's
+    own `pv` for a `root_moves`-restricted move already contains this continuation, so this
+    reuses `_describe_continuation()` verbatim (the same function `render_candidate_html()`
+    already calls for the selected good candidate) — no new continuation logic needed.
   - Quality label plumbing: `_gap_tier()` already computes a Best/Good/Inaccuracy/Blunder
     label, but `describe_gap()` currently discards it (`note, _ = _gap_tier(gap)`) — the
     don't-list will need that label surfaced, not just the prose note.
-  - Display: preamble/caption above the candidate radio buttons in `game_marimo.py`, per
-    the original idea.
+  - Display: its own area above the candidate radio buttons in `game_marimo.py`, per the
+    original idea — separate from, not mixed into, the good-candidates list.
 - Decide on a workflow fix for the `Game.ipynb` autosave-clobbering risk: a live browser
   tab's autosave can silently overwrite direct file edits to the same notebook, and vice
   versa. Happened once already this session. See `DECISIONS.md`. Note: `game_marimo.py`

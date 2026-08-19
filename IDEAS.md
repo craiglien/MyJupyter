@@ -74,3 +74,20 @@ imported under that name; see `DECISIONS.md`.)
   future extension: TTL-based auto-expiry (e.g. entries older than N days get recomputed
   even if the key still matches) — not needed for the first version, but the recorded
   timestamp is what would make it possible to add later without a cache format change.
+
+## `game_marimo.py` candidate-picker UX ideas
+
+- "Don't" list (name TBD) — alongside the ranked good-move candidates, surface a short
+  list of tempting-looking but bad moves, so the picker warns you away from traps as well
+  as pointing you toward good moves. Basis: reuse the existing `move_tag`/quality
+  classification already computed for the candidate ranking (Best/Good/Inaccuracy/
+  Mistake/Blunder) rather than building new trap-detection analysis — filter for the
+  low-quality end of the same ranked list instead of a separate eval-swing check. Shown
+  as a preamble/caption above the candidate radio buttons in the picker cell.
+- Preview a candidate move "in play" — a way to see the board with a given candidate move
+  actually made on it, without committing to it as the selected/analyzed line. Considered
+  mechanism: right-click (or similar context menu) on an entry in the candidate radio
+  list to trigger the board preview. Scope: the candidate-move picker in
+  `game_marimo.py` specifically (where `render_candidate_html` already renders a
+  board-with-move view for the selected radio choice) — this would let you spot-check
+  other candidates' resulting positions without changing the selection.

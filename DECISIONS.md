@@ -1,5 +1,40 @@
 # DECISIONS.md
 
+## Reconcile the orphaned GUARDRAIL.loc.md into the four-file framework
+Status: DECIDED
+
+Supersedes/refines the "Project control-file framework: plain four-file bootstrap, not
+CONTEXT.md/GUARDRAIL.loc.md" entry below: that decision's outcome stands — this project
+still uses the plain four-file bootstrap, no `CONTEXT.md`, no Context-Code-Trace Loop —
+but a stray, untracked `GUARDRAIL.loc.md` (a `gr`-tool-generated, globally-gitignored
+`*.loc.md` policy artifact) was still sitting in the repo root. Confirmed the file
+structure decision itself doesn't change; only worked through whether any of its
+*content* was still worth keeping before deleting the file.
+
+Adopted (folded into `CLAUDE.md`'s hard constraints): explicit-path-only `git add` (no
+directory adds), no pipe-to-shell installs, and a README.md content requirement (see
+`TASKS.md` backlog for the follow-up).
+
+Declined:
+- The STRICT/FREEFLOW mode contract, behavior contract, "Sync" keyword, and P0–P4
+  violation taxonomy — this session's ambient assistant behavior (ask on ambiguity,
+  confirm risky actions) already covers the same ground without a separate formal
+  contract to maintain.
+- The `LLM_TODO*.md`/`IMPLEMENTATION_PLAN*.md` scratch-file naming convention — replaced
+  by a lighter existing convention instead: any `*.scratch.md` file is a raw, unstructured,
+  never-committed pre-`IDEAS.md` landing space (already globally gitignored via
+  `~/.config/git/gitignore_global`, so it needs no per-repo setup); content gets promoted
+  into `IDEAS.md` by hand once it's actually worth tracking. Cross-project by nature, so
+  not written into this project's own `CLAUDE.md`.
+- The Document→Test→Fix→Verify production-error-prevention workflow and pytest/atomic-
+  unit-testing rules — discarded entirely; its worked examples (Django migrations,
+  Wagtail admin) don't match this project's stack, indicating generic template
+  boilerplate rather than content actually curated for this repo.
+
+`GUARDRAIL.loc.md` itself retired (untracked/gitignored, removed directly from the
+filesystem, not via commit — see the file's own rules: it's an external policy artifact
+managed by the `gr` tool, never meant to be committed to a consumer repo).
+
 ## marimo's floating run-all control can't be repositioned — noted, not fixed
 Status: DECIDED
 

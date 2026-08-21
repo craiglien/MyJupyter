@@ -41,7 +41,7 @@ MARIMO_PORT_VAL=${MARIMO_PORT:-8889}
 gosu ${U} jupyter notebook --ip=0.0.0.0 --port=${JUPYTER_PORT_VAL} --no-browser --allow-root --NotebookApp.token='' &
 JUPYTER_PID=$!
 
-gosu ${U} marimo edit /app/game_marimo.py --headless --no-token --host 0.0.0.0 --port ${MARIMO_PORT_VAL} &
+gosu ${U} marimo edit /app/game_marimo.py --headless --no-token --host 0.0.0.0 --port ${MARIMO_PORT_VAL} --skip-update-check &
 MARIMO_PID=$!
 
 trap 'kill -TERM $JUPYTER_PID $MARIMO_PID 2>/dev/null' TERM INT

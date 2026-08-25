@@ -1,5 +1,7 @@
 import io
 import json
+import logging
+import logging.handlers
 import os
 import re
 import time
@@ -10,11 +12,32 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.6.0"
+__ver__ = "0.7.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
 stockfish_path = "/usr/bin/stockfish"
+
+# Debug log for engine calls, cache hits/misses, and anything else worth
+# tracing back after the fact (e.g. "what did the engine actually see when
+# I tried that move"). Rotated so a long-running container doesn't grow it
+# unbounded; written under /data so it survives container restarts like
+# engine_cache.json does, but — unlike the cache — kept even across a cache
+# clear, since its whole point is a history of what happened. `log` (this
+# module) and game.py's own logger are both children of the "chess" logger,
+# which is the one that actually owns the handler — see the guard below,
+# needed because Python caches imported modules but marimo/Jupyter can
+# still re-run this module-level code (kernel restart, cache-cleared
+# reimport), and a second handler would double every line.
+_LOG_PATH = "/data/debug.log"
+log = logging.getLogger("chess.position")
+_log_root = logging.getLogger("chess")
+if not _log_root.handlers:
+    _log_root.setLevel(logging.DEBUG)
+    _handler = logging.handlers.RotatingFileHandler(_LOG_PATH, maxBytes=2_000_000, backupCount=3)
+    _handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    _log_root.addHandler(_handler)
+    _log_root.propagate = False
 
 # On-disk cache of Stockfish results, keyed by (engine version, multipv,
 # time_limit, FEN) so a rebuilt/upgraded engine or a different time budget
@@ -54,8 +77,10 @@ def _evaluate_cached(engine, board, cache, time_limit, version):
     fen = board.fen()
     key = f"{version}|1|{time_limit}|{fen}"
     if key in cache:
+        log.debug("eval cache HIT fen=%s time_limit=%s", fen, time_limit)
         return cache[key]["white_cp"]
 
+    log.debug("eval cache MISS fen=%s time_limit=%s — calling engine", fen, time_limit)
     info = engine.analyse(board, chess.engine.Limit(time=time_limit))
     white_cp = info["score"].white().score(mate_score=100000)
     cache[key] = {"white_cp": white_cp, "timestamp": time.time()}
@@ -319,6 +344,7 @@ def open_engine():
     needed; shared by _analyze() (opens/closes per call) and game.py's
     sweep_game() (opens once, holds it for the whole sweep) even though
     the two use different lifecycles."""
+    log.debug("starting Stockfish engine process: %s", stockfish_path)
     return chess.engine.SimpleEngine.popen_uci(stockfish_path)
 
 
@@ -344,6 +370,7 @@ def _analyze(root_board, multipv=5, time_limit=2.0, root_moves=None):
     position anyway; callers already handle an empty/game-over result
     (see _display_ranked_moves())."""
     if root_board.is_game_over():
+        log.debug("_analyze: game over at fen=%s, skipping engine call", root_board.fen())
         return []
 
     fen = root_board.fen()
@@ -357,7 +384,10 @@ def _analyze(root_board, multipv=5, time_limit=2.0, root_moves=None):
         else:
             key = f"{version}|{multipv}|{time_limit}|{fen}"
         if key in cache:
+            log.debug("analyze cache HIT fen=%s multipv=%s time_limit=%s", fen, multipv, time_limit)
             return _deserialize_info(cache[key]["info"], root_board.turn)
+        log.debug("analyze cache MISS fen=%s multipv=%s time_limit=%s root_moves=%s — calling engine",
+                   fen, multipv, time_limit, root_moves is not None)
         info = engine.analyse(root_board, chess.engine.Limit(time=time_limit), multipv=multipv,
                                root_moves=root_moves)
     cache[key] = {"info": _serialize_info(info), "timestamp": time.time()}
@@ -427,8 +457,10 @@ def score_move(root_board, move, best_score=None, time_limit=2.0):
     out to have no legal response to analyze from (shouldn't happen for
     a legal move in a non-game-over position, but mirrors _analyze()'s
     own empty-result contract rather than assuming)."""
+    log.debug("score_move: fen=%s move=%s time_limit=%s", root_board.fen(), move.uci(), time_limit)
     info = _analyze(root_board, multipv=1, time_limit=time_limit, root_moves=[move])
     if not info:
+        log.debug("score_move: no analysis returned for move=%s", move.uci())
         return None
     candidate = rank_candidates(root_board, info, best_score=best_score)[0]
     reference = best_score if best_score is not None else candidate["score"]
@@ -463,6 +495,7 @@ def rank_dont_list(root_board, good_info, max_dont=3, time_limit=2.0):
 
     top_moves = {entry["pv"][0] for entry in good_info}
     tempting = _tempting_but_unranked_moves(root_board, top_moves)
+    log.debug("rank_dont_list: %d tempting move(s) to score at fen=%s", len(tempting), root_board.fen())
     if not tempting:
         return []
 

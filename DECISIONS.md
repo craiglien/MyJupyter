@@ -1,5 +1,31 @@
 # DECISIONS.md
 
+## Candidate-list detail now flags "What's risky" for Inaccuracy/Blunder-tier moves
+Status: DECIDED
+
+Requested: the per-candidate detail block on the right of the board (rendered by
+`render_candidate_html()` in `position.py`, shown by `game_marimo.py`'s candidate picker)
+listed the engine's expected reply as a neutral forecast ("Engine expects Black's reply
+Nxe5 — ...") even for candidates well behind the top move, without saying *why* that
+reply is a problem. Extended `_describe_continuation()` with a `risky=` flag that reframes
+just the first continuation line as "What's risky: opens the door to ... — {reason}"
+instead — reusing the same PV/classify_move() data already computed, no new engine calls.
+`render_candidate_html()` passes `risky=True` only when the candidate's `quality` (now
+added to every `rank_candidates()` entry, via the existing `gap_quality()`) is
+Inaccuracy or Blunder; Best/Good-tier candidates (including the top move itself) keep the
+neutral phrasing, since a move that's merely a touch behind isn't actually wrong. Later PV
+plies keep the neutral "Then ... continues" wording regardless — they're follow-through,
+not the risk itself. Styling stays the same as the rest of the candidate list (no red/warn
+color, unlike the separate "Tempting, but don't" section) since these are still legitimate
+top-5 engine moves, not traps.
+
+`position.py` bumped `0.7.0` → `0.8.0` (MINOR — new `quality` field and `risky=` param are
+additive, no existing signature/behavior changes). Verified offline with a `FakeEngine`-
+style hand-built multipv result (Stockfish itself won't run natively on the host): a Best
+move and a Blunder-tier move both with replies confirmed the top move keeps "Engine
+expects" while the Blunder-tier one gets "What's risky"; a second check with a synthetic
+Good-tier candidate confirmed it stays neutral too.
+
 ## Debug logging added to position.py/game.py, writing to /data/debug.log
 Status: DECIDED
 

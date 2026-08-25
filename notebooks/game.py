@@ -1,11 +1,15 @@
+import logging
+
 import chess
 import matplotlib.pyplot as plt
 from IPython.display import HTML, display
 
 import position
 
-__ver__ = "0.3.0"
+__ver__ = "0.4.0"
 print(f"game ver {__ver__}")
+
+log = logging.getLogger("chess.game")
 
 
 def _game_phase(board):
@@ -66,6 +70,7 @@ def sweep_game(pgn_text, time_limit=0.3):
     swings."""
     game = position.parse_pgn(pgn_text)
     board = game.board()
+    log.debug("sweep_game: starting, time_limit=%s", time_limit)
 
     cache = position._load_cache()
     records = []
@@ -107,6 +112,7 @@ def sweep_game(pgn_text, time_limit=0.3):
             prev_white_cp = white_cp
 
     position._save_cache(cache)
+    log.debug("sweep_game: done, swept %d ply", len(records))
     return records
 
 

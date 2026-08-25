@@ -189,6 +189,9 @@ def _(analyze_button, board, candidates, mo, move_text, position):
             try:
                 move = board.board.parse_san(text)
             except ValueError as e:
+                position.log.debug(
+                    "try-your-own-move: illegal SAN %r at fen=%s (%s)", text, board.board.fen(), e
+                )
                 result = mo.md(f"*Not a legal move here — {e}*")
             else:
                 existing = next(

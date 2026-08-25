@@ -1,5 +1,31 @@
 # DECISIONS.md
 
+## Debug logging added to position.py/game.py, writing to /data/debug.log
+Status: DECIDED
+
+Requested so unexpected behavior noticed while using `game_marimo.py` (the PGN
+game-discusser) can be pointed back to a concrete log line instead of relying on memory.
+Added a `logging` setup in `position.py`: a `"chess"` root logger holding one
+`RotatingFileHandler` (`/data/debug.log`, 2MB/3 backups, gitignored like
+`engine_cache.json`), guarded with `if not _log_root.handlers` so a kernel restart or
+marimo reimport of the module doesn't double-attach handlers and double every line.
+`position.py` logs as `"chess.position"`, `game.py` as `"chess.game"` — both children of
+`"chess"`, so they share its one handler without each needing its own setup. Debug lines
+cover the actual points worth tracing back: engine cache hit/miss in `_analyze()` and
+`_evaluate_cached()`, engine process start in `open_engine()`, `score_move()`'s
+try-your-own-move calls, `rank_dont_list()`'s tempting-move count, `sweep_game()`'s
+start/end, and — in `game_marimo.py`'s try-your-own-move cell — illegal SAN input, since
+that's a thing a user can actually trigger and want to mention later.
+
+Verified offline (Stockfish itself won't run natively on the host — `./stockfish-bin` is
+Linux-arch-specific, built for the container — so a `FakeEngine` stand-in matching
+`chess.engine`'s real return shapes, dict for default multipv/list for explicit multipv,
+was used instead): ran `position.moves()` twice (cache MISS then HIT), `score_move()`, a
+deliberately illegal SAN, and `game.sweep_game()` against a short PGN, then read back
+`/data/debug.log` and confirmed every expected line was there in order. `position.py`
+bumped `0.6.0` → `0.7.0`, `game.py` `0.3.0` → `0.4.0` (both MINOR — new logging
+infrastructure, no existing signature/behavior changes).
+
 ## "Don't" list implemented in position.py/game_marimo.py; confirmed working in the browser
 Status: DECIDED
 

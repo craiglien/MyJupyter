@@ -12,7 +12,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.7.0"
+__ver__ = "0.8.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -395,11 +395,19 @@ def _analyze(root_board, multipv=5, time_limit=2.0, root_moves=None):
     return info
 
 
-def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
+def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2, risky=False):
     """Describe up to `max_extra_plies` further plies of a principal
     variation (the reply, and possibly the move after that), each with a
     short reason via classify_move()/describe_move_reason(). Reuses data
-    already in the PV — no extra engine calls."""
+    already in the PV — no extra engine calls.
+
+    `risky=True` reframes the first line as the actual downside of the
+    move being described — "What's risky: opens the door to ..." instead
+    of the neutral "Engine expects ..." — for an Inaccuracy/Blunder-tier
+    candidate in render_candidate_html(), where the reply isn't just
+    "expected", it's *why the candidate is graded worse than the top
+    move*. Later plies keep the neutral "Then ... continues" phrasing
+    either way — they're follow-through, not the risk itself."""
     lines = []
     walk_board = board_after_move.copy()
     for i, mv in enumerate(pv_rest[:max_extra_plies]):
@@ -407,7 +415,10 @@ def _describe_continuation(board_after_move, pv_rest, max_extra_plies=2):
         san = walk_board.san(mv)
         reason = " ".join(describe_move_reason(classify_move(walk_board, mv)))
         if i == 0:
-            lines.append(f"Engine expects {mover}'s reply {san} — {reason}")
+            if risky:
+                lines.append(f"What's risky: opens the door to {mover}'s {san} — {reason}")
+            else:
+                lines.append(f"Engine expects {mover}'s reply {san} — {reason}")
         else:
             lines.append(f"Then {mover} likely continues with {san} — {reason}")
         walk_board.push(mv)
@@ -425,7 +436,12 @@ def rank_candidates(root_board, info, best_score=None):
     `best_score` defaults to info[0]'s own score (the best of `info`
     itself). rank_dont_list() passes the real best-of-position score
     explicitly instead, so tempting moves are graded against the actual
-    best move rather than the best of the tempting subset."""
+    best move rather than the best of the tempting subset.
+
+    Includes a `quality` label (Best/Good/Inaccuracy/Blunder, from
+    gap_quality()) on every candidate — render_candidate_html() uses it
+    to decide whether a candidate's expected reply gets framed as an
+    explicit risk rather than a neutral forecast."""
     if best_score is None:
         best_score = info[0]["score"].relative
 
@@ -441,6 +457,7 @@ def rank_candidates(root_board, info, best_score=None):
             "move_info": move_info, "move": move, "score": score, "san": san,
             "class_info": class_info, "score_text": score_text, "eval_text": eval_text,
             "gap_text": gap_text, "gap_note": gap_note,
+            "quality": gap_quality(best_score, score),
         })
     return candidates
 
@@ -575,7 +592,11 @@ def render_candidate_html(root_board, candidates, idx, user):
     rank_note = "This is the engine's top choice." if c["gap_text"] == "0.00" \
         else f"{c['gap_note']} (Gap vs best: {c['gap_text']})"
 
-    continuation_lines = _describe_continuation(temp_board, pv[1:], max_extra_plies=2)
+    # Only Inaccuracy/Blunder tier gets the "What's risky" framing — a
+    # Good move just a touch behind the top choice isn't actually wrong,
+    # so its expected reply stays a neutral forecast rather than a warning.
+    is_risky = c["quality"] in ("Inaccuracy", "Blunder")
+    continuation_lines = _describe_continuation(temp_board, pv[1:], max_extra_plies=2, risky=is_risky)
 
     mv_out = f"{idx}. {c['san']} ({move.uci()}) &mdash; {c['score_text']}"
     detail_lines = [f"Eval: {c['eval_text']}", "<br>".join(reasons), rank_note] + continuation_lines

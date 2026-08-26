@@ -2,6 +2,37 @@
 
 Scratch notes — promote into `TASKS.md` or `DECISIONS.md` once they firm up.
 
+## General pattern: config / build / run / entrypoint (not chess-specific)
+This project's `config.sh` / `build.sh` / `run.sh` / `entrypoint.sh` follow a reusable
+pattern worth remembering independent of this repo:
+
+- **Config file** (sourced by the other scripts, never run standalone): the small set of
+  values build-time and run-time both need to agree on — image name/tag, host↔container
+  path mappings, ports, host UID/GID. Centralizing these keeps the scripts from drifting
+  out of sync.
+- **Build script** (run occasionally, whenever the image definition changes): produces the
+  image. If it needs to extract an artifact that's environment-dependent (e.g.
+  architecture-specific) and shouldn't be permanently baked into the final image, build a
+  second throwaway image targeting just that stage, spin up a disposable container from
+  it, `cp` the artifact out to the host, then delete the container — guarantees the
+  artifact matches the *build environment's* real characteristics instead of an assumption
+  baked in at image-definition time.
+- **Run script** (run every session): starts a new container with `--rm` (disposable, no
+  accumulation of stopped containers), publishes whatever ports the container exposes,
+  bind-mounts any directory that needs to survive past the container's life or be edited
+  directly from the host, and passes in env vars (commonly host UID/GID) for the
+  entrypoint to consume.
+- **Entrypoint script** (the image's `CMD`, baked in at build time — unlike bind-mounted
+  content, edits need a rebuild, not just a restart, to take effect): reconciles the
+  container's internal user with the host UID/GID so bind-mounted writes come out
+  host-owned, launches the actual long-running process(es) (backgrounded if there's more
+  than one), and traps signals so `docker stop`/Ctrl-C shuts every backgrounded child down
+  cleanly and the container exits if any one of them dies unexpectedly.
+
+The asymmetry worth remembering: bind-mounted paths reflect host edits immediately;
+anything `COPY`'d into the image at build time requires a rebuild to pick up a change,
+even though a plain container restart looks like it should be enough.
+
 - Pin `stockfish/src` to a specific tagged Stockfish release (currently an untracked
   snapshot — worth recording which version/commit it came from for reproducibility).
 - The current `ARCH=x86-64` / `ARCH=armv8` build selection is a conservative baseline

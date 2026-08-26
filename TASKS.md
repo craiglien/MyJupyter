@@ -4,6 +4,15 @@
 (none — paused; chess is a hobby project, picking back up whenever)
 
 ## Up next
+- Follow up on the "What's risky" candidate-list note just added to
+  `render_candidate_html()`/`_describe_continuation()` (2026-08-24) — see `DECISIONS.md`.
+  Only offline-verified so far (hand-built `FakeEngine` multipv result); not yet checked
+  live in the running marimo notebook.
+
+## Backburner
+Marimo migration work is good enough for now — explicitly deprioritized in favor of the
+"What's risky" feature above (2026-08-24). Revisit whenever that's done.
+
 - Return to the game side (`game.py`/`game_marimo.py`/`Game.ipynb`) — not touched in the
   last 48h (as of 2026-08-19) while attention has been on `position.py`/`Position.ipynb`,
   which is now working well.
@@ -12,6 +21,15 @@
   versa. Happened once already this session. See `DECISIONS.md`. Note: `game_marimo.py`
   doesn't have this specific failure mode (no autosave/JSON layer), but `Game.ipynb`
   itself is still Jupyter and still exposed to it.
+- Convert `Position.ipynb` to marimo too. `Game.ipynb`'s workflow got a marimo sibling
+  (`game_marimo.py`, candidate-picker only) rather than a full replacement — Jupyter and
+  marimo now run side by side in the container (see `DECISIONS.md`). Position-side
+  conversion, retiring Jupyter entirely, and the `Game.ipynb` autosave-clobbering fix
+  above are all still open.
+- Port `show_sweep()`/`show_critical_moments()`'s eval-curve chart and auto-flagged
+  critical moments to `game_marimo.py` — both are Jupyter/`display()`-side-effect-only
+  today and were left out of the marimo notebook, which currently only covers looking at
+  one position's candidates.
 
 ## Backlog
 - Don't-list "moves toward the center" selection heuristic: v1 (shipped) only scores
@@ -25,15 +43,6 @@
   see IDEAS.md's Idea 3 (deferred).
 - Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
   (see `IDEAS.md`) instead of an untracked snapshot.
-- Convert `Position.ipynb` to marimo too. `Game.ipynb`'s workflow got a marimo sibling
-  (`game_marimo.py`, candidate-picker only) rather than a full replacement — Jupyter and
-  marimo now run side by side in the container (see `DECISIONS.md`). Position-side
-  conversion, retiring Jupyter entirely, and the `Game.ipynb` autosave-clobbering fix
-  above are all still open.
-- Port `show_sweep()`/`show_critical_moments()`'s eval-curve chart and auto-flagged
-  critical moments to `game_marimo.py` — both are Jupyter/`display()`-side-effect-only
-  today and were left out of the marimo notebook, which currently only covers looking at
-  one position's candidates.
 - `notebooks/__marimo__/session/Chess.py.json` is a stale session artifact for a
   different, still-nonexistent `Chess.py` (predates the `Position.ipynb` rename) —
   unrelated to the new `game_marimo.py` file; still safe to ignore.

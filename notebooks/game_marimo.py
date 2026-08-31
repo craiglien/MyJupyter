@@ -47,7 +47,17 @@ def _(mo):
 
 
 @app.cell
-def _(get_ply, mo, records, set_ply):
+def _(mo):
+    # Board orientation (True = viewing from Black's side), toggled by the
+    # flip-board button next to the ply-stepper. Kept separate from
+    # get_ply/set_ply above so flipping the board doesn't touch or reset
+    # your place in the game.
+    get_flipped, set_flipped = mo.state(False, allow_self_loops=True)
+    return get_flipped, set_flipped
+
+
+@app.cell
+def _(get_flipped, get_ply, mo, records, set_flipped, set_ply):
     # A static caption here, not a live ply count — the live "ply X of N"
     # indicator lives in the board cell below instead, which is simpler
     # since it only reads get_ply() and never calls set_ply.
@@ -72,18 +82,22 @@ def _(get_ply, mo, records, set_ply):
         on_click=lambda _: set_ply(lambda v: len(records) - 1),
         disabled=button_ply == len(records) - 1,
     )
+    flip_button = mo.ui.button(
+        label=f"⇄ Flip board (viewing as {'Black' if get_flipped() else 'White'})",
+        on_click=lambda _: set_flipped(lambda v: not v),
+    )
     mo.vstack([
         mo.md("### Step through the game"),
-        mo.hstack([first_button, prev_button, next_button, last_button], justify="start"),
+        mo.hstack([first_button, prev_button, next_button, last_button, flip_button], justify="start"),
     ])
     return
 
 
 @app.cell(hide_code=True)
-def _(chess, get_ply, mo, position, records):
+def _(chess, get_flipped, get_ply, mo, position, records):
     ply = get_ply()
     r = records[ply]
-    board = position.make(r["fen_after"], "w")
+    board = position.make(r["fen_after"], "b" if get_flipped() else "w")
 
     move_label = f"{r['move_number']}{'.' if r['mover'] == 'White' else '...'}"
     board_svg = chess.svg.board(board=board.board, size=300, orientation=board.user)

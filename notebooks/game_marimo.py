@@ -6,14 +6,12 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
-    import chess
-    import chess.svg
     import marimo as mo
 
     import game
     import position
 
-    return chess, game, mo, position
+    return game, mo, position
 
 
 @app.cell
@@ -94,13 +92,13 @@ def _(get_flipped, get_ply, mo, records, set_flipped, set_ply):
 
 
 @app.cell(hide_code=True)
-def _(chess, get_flipped, get_ply, mo, position, records):
+def _(get_flipped, get_ply, mo, position, records):
     ply = get_ply()
     r = records[ply]
     board = position.make(r["fen_after"], "b" if get_flipped() else "w")
 
     move_label = f"{r['move_number']}{'.' if r['mover'] == 'White' else '...'}"
-    board_svg = chess.svg.board(board=board.board, size=300, orientation=board.user)
+    board_svg = position.render_board_svg(board.board, r["move"], board.user)
 
     mo.vstack([
         mo.md(f"**Move {ply + 1} of {len(records)}: {move_label}{r['san']}** — "

@@ -6,7 +6,7 @@ from IPython.display import HTML, display
 
 import position
 
-__ver__ = "0.4.0"
+__ver__ = "0.5.0"
 print(f"game ver {__ver__}")
 
 log = logging.getLogger("chess.game")
@@ -98,6 +98,7 @@ def sweep_game(pgn_text, time_limit=0.3):
                 "ply": ply,
                 "move_number": (ply + 1) // 2,
                 "mover": mover,
+                "move": move,
                 "san": san,
                 "white_eval": white_cp / 100,
                 "white_eval_display": _format_eval(white_cp),

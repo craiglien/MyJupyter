@@ -32,6 +32,21 @@ Marimo migration work is good enough for now — explicitly deprioritized in fav
   one position's candidates.
 
 ## Backlog
+- Game Collections (scoped and ready, not yet built — 2026-08-26): user-curated named
+  lists of games to page through (e.g. "Favorite Capablanca Endgames," "Ruy Lopez Opening
+  Traps"). Design settled via MCQ discussion:
+  - Data: `./data/collections/*.pgn`, one file per collection (filename → collection
+    name), multiple games per file via standard multi-game PGN — bind-mounted, so adding
+    or editing a collection needs no rebuild.
+  - Code: new `collections.py` module listing available collection files and the games
+    inside one, built on `position.parse_pgn()`/`chess.pgn`'s existing multi-game-read
+    support — no duplicated PGN-parsing or analysis logic.
+  - UI: a new sibling notebook (not a change to `game_marimo.py`) — collection picker,
+    then Next/Prev buttons to step through games in the chosen collection (mirroring the
+    existing ply-stepper's button pattern in `game_marimo.py`). Selecting a game
+    auto-fills the new notebook's own `pgn_text`-equivalent, reusing the whole existing
+    candidate-picker/risk-notes/try-your-own-move stack unchanged; if nothing's selected
+    yet, it stays on whatever's currently loaded rather than resetting to empty.
 - Don't-list "moves toward the center" selection heuristic: v1 (shipped) only scores
   captures and checks as "tempting"; a concrete rule for center-ward quiet moves (e.g.
   destination square in the central 4 or 16 squares) was left out. Add if it turns out

@@ -12,7 +12,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.8.0"
+__ver__ = "0.9.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -338,6 +338,17 @@ def _pieces_over_arrows(svg):
     return svg[:first_use] + "".join(arrows) + svg[first_use:]
 
 
+def render_board_svg(board_after_move, move, user, size=300):
+    """Board SVG with `move`'s from/to squares highlighted (`lastmove=`)
+    and an arrow drawn over them, piece-over-arrow fixed up via
+    _pieces_over_arrows(). Shared by render_candidate_html(),
+    render_dont_html(), and game_marimo.py's step-through board, so a
+    played move looks the same everywhere it's shown."""
+    return _pieces_over_arrows(chess.svg.board(
+        board_after_move, arrows=[(move.from_square, move.to_square)],
+        size=size, orientation=user, lastmove=move))
+
+
 def open_engine():
     """Start a Stockfish process via UCI. Use as `with open_engine() as
     engine:`. One place to change if engine startup options are ever
@@ -544,9 +555,7 @@ def render_dont_html(root_board, dont_candidates, idx, user):
     temp_board = root_board.copy()
     temp_board.push(move)
 
-    svg_move = _pieces_over_arrows(chess.svg.board(
-        temp_board, arrows=[(move.from_square, move.to_square)],
-        size=300, orientation=user, lastmove=move))
+    svg_move = render_board_svg(temp_board, move, user)
 
     tempting_reasons = describe_move_reason(c["class_info"])
     warning = f"Looks tempting — {' '.join(tempting_reasons)}"
@@ -578,9 +587,7 @@ def render_candidate_html(root_board, candidates, idx, user):
     temp_board = root_board.copy()
     temp_board.push(move)
 
-    svg_move = _pieces_over_arrows(chess.svg.board(
-        temp_board, arrows=[(move.from_square, move.to_square)],
-        size=300, orientation=user, lastmove=move))
+    svg_move = render_board_svg(temp_board, move, user)
 
     reasons = describe_move_reason(c["class_info"])
     # Gap-based, not idx == 1: idx is only "the top choice" when `candidates`

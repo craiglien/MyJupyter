@@ -113,9 +113,15 @@ imported under that name; see `DECISIONS.md`.)
   since multipv only ever returns strong moves — a real trap won't appear in it. Settled
   on scoring a targeted set of tempting-looking moves instead, via `root_moves=`.)
 - Preview a candidate move "in play" — a way to see the board with a given candidate move
-  actually made on it, without committing to it as the selected/analyzed line. Considered
-  mechanism: right-click (or similar context menu) on an entry in the candidate radio
-  list to trigger the board preview. Scope: the candidate-move picker in
-  `game_marimo.py` specifically (where `render_candidate_html` already renders a
-  board-with-move view for the selected radio choice) — this would let you spot-check
-  other candidates' resulting positions without changing the selection.
+  actually made on it, without committing to it as the selected/analyzed line. Scope: the
+  candidate-move picker in `game_marimo.py` specifically (where `render_candidate_html`
+  already renders a board-with-move view for the selected radio choice) — this would let
+  you spot-check other candidates' resulting positions without changing the selection.
+  Two mechanisms considered, both still on the table (2026-09-09):
+  - Hover (preferred): since `render_candidate_html()` builds each candidate's board+
+    arrow purely from data `rank_candidates()` already computed, all candidates' boards
+    could be pre-rendered up front — no extra Stockfish calls — then shown via plain CSS
+    `:hover` next to the option being pointed at. Likely no server round-trip needed at
+    all, unlike marimo's usual click-driven reactive-state model.
+  - Right-click/context menu — noted as a fallback in case hover doesn't work well on
+    touch/trackpad interactions.

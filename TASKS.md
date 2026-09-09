@@ -32,6 +32,21 @@ Marimo migration work is good enough for now — explicitly deprioritized in fav
   one position's candidates.
 
 ## Backlog
+- Stop `git status` from showing a modified file just from normal use (idea stage,
+  discussed 2026-09-09, not yet written down until now): `pgn_text` — "which game am I
+  looking at" — lives inside the git-tracked `game_marimo.py`, so every time you switch
+  games it shows up as a code diff needing a commit, even though it's working state, not
+  a code change. Two-phase plan, Phase 1 a strict subset of Phase 2 so doing it first
+  doesn't box in the second:
+  - Phase 1 (small, self-contained): move the "current game" value out of
+    `game_marimo.py` into a file under `./data` (bind-mounted, gitignored like
+    `engine_cache.json`/`debug.log`, survives container restarts). The notebook reads it
+    at startup instead of a hardcoded triple-quoted string; a text box lets you overwrite
+    it. Switching games becomes a data-file edit, nothing to commit, state still there
+    next time.
+  - Phase 2: this is exactly the plumbing the Game Collections item below needs anyway —
+    "selecting a game auto-fills pgn_text" is the same mechanism, just fed from a chosen
+    collection instead of a single text box.
 - Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
   `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.
   Direction settled via MCQ discussion:
@@ -51,6 +66,12 @@ Marimo migration work is good enough for now — explicitly deprioritized in fav
   - Still unscoped: which Gemini model/SDK, how the chat UI embeds in marimo, exact
     matching logic from "a few moves" to "which famous games opened this way," and
     whether this needs container network egress (not needed by anything today).
+  - Noted 2026-09-09: pair this with the already-shipped "What's risky" candidate-list
+    flagging (`render_candidate_html()`/`_describe_continuation()`, see `DECISIONS.md`)
+    once this chat exists — Stockfish stays the objective source of *what's* risky, the
+    AI adds plain-language *why*/story on top, rather than trusting the AI's own risk
+    judgment standalone. "What's risky" was called out as genuinely good education worth
+    building on, not just a UI tweak.
 - Game Collections (scoped and ready, not yet built — 2026-08-26): user-curated named
   lists of games to page through (e.g. "Favorite Capablanca Endgames," "Ruy Lopez Opening
   Traps"). Design settled via MCQ discussion:

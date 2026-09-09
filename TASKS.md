@@ -32,6 +32,25 @@ Marimo migration work is good enough for now — explicitly deprioritized in fav
   one position's candidates.
 
 ## Backlog
+- Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
+  `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.
+  Direction settled via MCQ discussion:
+  - Keeps the existing Stockfish candidate-picker for verified move quality, plus a
+    Gemini chat panel alongside it purely for narrative ("type in a few moves, ask what
+    the options are for the next 3-4 moves, which famous games/players played this
+    style"). Engine facts and LLM narrative stay visually separate, same reasoning as the
+    v2 hybrid-narrative idea below.
+  - Famous-game references get grounded against a local PGN collection (not just trusted
+    from Gemini's training) — depends on the Game Collections item below existing first,
+    or at least a "famous games" collection file, so answers are checked against real
+    PGN data instead of the model inventing specifics.
+  - Gemini API key stored under a new `.auth/` directory at the repo root (gitignored,
+    added 2026-09-09), read by `config.sh`/`run.sh` and passed into the container as an
+    env var — same untracked-on-host delivery pattern already used for `LOCAL_UID`/
+    `LOCAL_GID`, just sourced from a dedicated gitignored file instead of the shell env.
+  - Still unscoped: which Gemini model/SDK, how the chat UI embeds in marimo, exact
+    matching logic from "a few moves" to "which famous games opened this way," and
+    whether this needs container network egress (not needed by anything today).
 - Game Collections (scoped and ready, not yet built — 2026-08-26): user-curated named
   lists of games to page through (e.g. "Favorite Capablanca Endgames," "Ruy Lopez Opening
   Traps"). Design settled via MCQ discussion:

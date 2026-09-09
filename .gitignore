@@ -1,5 +1,6 @@
 .ipynb_checkpoints
 notebooks/__marimo__/
+.auth/
 stockfish-bin
 data/engine_cache.json
 data/debug.log*

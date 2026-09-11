@@ -72,6 +72,21 @@ Marimo migration work is good enough for now — explicitly deprioritized in fav
     AI adds plain-language *why*/story on top, rather than trusting the AI's own risk
     judgment standalone. "What's risky" was called out as genuinely good education worth
     building on, not just a UI tweak.
+- Tutorial notebook (idea stage, not scoped — 2026-09-11): a new sibling notebook +
+  module, focused on walking through one whole game as a guided lesson. Direction settled
+  via MCQ discussion:
+  - Game input: paste a PGN directly, same convention as `game_marimo.py` — no picker/AI
+    game-selection for this idea (unlike the Opening-prep notebook above).
+  - Focus model: you mark one ply/move as "the point in time I'm interested in"; the rest
+    of the game gets light step-through treatment, but the moves immediately before and
+    after that focal point get a real breakdown — not uniform depth across every move.
+  - Breakdown content: engine facts (reusing existing candidate/eval/quality/"What's
+    risky" machinery) paired with AI narrative once the Gemini chat exists — same
+    objective-facts-plus-AI-narrative split already decided for the Opening-prep notebook
+    and the What's-risky link above, not an either/or.
+  - Still unscoped: exact mechanism for marking the focal ply, how many plies before/after
+    count as "before and after," and whether a first cut can ship with engine-only
+    breakdown before the Gemini plumbing exists.
 - Game Collections (scoped and ready, not yet built — 2026-08-26): user-curated named
   lists of games to page through (e.g. "Favorite Capablanca Endgames," "Ruy Lopez Opening
   Traps"). Design settled via MCQ discussion:

@@ -1,5 +1,44 @@
 # DECISIONS.md
 
+## Jupyter retired; one stable port (12345) now hosts a generated landing page
+Status: DECIDED
+
+Requested: stop `git status` from ever needing to change alongside picking a port to use,
+and get a single stable URL to point a browser at, instead of memorizing which port
+serves which notebook. Implemented per TASKS.md Backlog items 2-3 (design settled via MCQ
+discussion 2026-09-18):
+
+- `entrypoint.sh` no longer launches `jupyter notebook` at all. The Dockerfile's `jupyter`
+  pip install and `notebooks/Position.ipynb`/`Game.ipynb` themselves are untouched —
+  reversible with a one-line entrypoint change, no rebuild needed to bring Jupyter back.
+- `config.sh` drops the old single `MARIMO_PORT` in favor of a range
+  (`MARIMO_PORT_START=12346`, `MARIMO_PORT_END=12350`) — `run.sh` publishes the whole
+  range (`docker run -p 12346-12350:12346-12350`) since Docker's port mappings must be
+  fixed before the container starts, even though which notebooks actually claim which
+  port within that range is decided dynamically, inside the container, at each start.
+- `entrypoint.sh` globs `/app/*_marimo.py`, launches one `marimo edit` process per file
+  found (today: just `game_marimo.py`), assigning ports sequentially from
+  `MARIMO_PORT_START`; extra notebooks beyond `MARIMO_PORT_END` are skipped with a
+  stderr warning rather than crashing. New notebooks (Collections/Opening-prep/Tutorial,
+  per TASKS.md) need zero `config.sh` changes to get a port.
+- A landing page is generated fresh into `/srv/landing/index.html` on every container
+  start (a build step, not a hand-maintained file) — deliberately NOT under `/app`
+  (bind-mounted to the host), so the generated file never shows up in `git status` on the
+  host. Served by a plain `gosu`'d `python3 -m http.server` on the one externally
+  published, stable port (`12345`, `LANDING_PORT`) — zero new dependencies.
+- Each notebook's "live" status on the page is a client-side JS `fetch(url, {mode:
+  "no-cors"})` probe run in the browser on page load/refresh, not baked in at
+  container-start — genuinely current, not just "what was running when the container
+  booted."
+- Both the array-based PID/trap/wait generalization (was hardcoded to exactly two
+  processes; now handles however many `*_marimo.py` files exist plus the landing-page
+  server) and the whole flow were verified against a real rebuilt image and a running
+  `--rm` container (not just read through): confirmed no `jupyter` process exists,
+  `http://<host>:12345/` returns the generated page linking to `game_marimo` on `12346`,
+  `12346` itself responds, both server processes run as the unprivileged `crun` user, and
+  `docker stop` cleanly tears the container down (the brief "Dead" status observed was
+  mid-teardown, not a hang — the `--rm` container fully self-removed immediately after).
+
 ## Candidate-list detail now flags "What's risky" for Inaccuracy/Blunder-tier moves
 Status: DECIDED
 

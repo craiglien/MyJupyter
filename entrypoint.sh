@@ -30,50 +30,62 @@ MARIMO_PORT_START_VAL=${MARIMO_PORT_START:-12346}
 MARIMO_PORT_END_VAL=${MARIMO_PORT_END:-12350}
 
 # Jupyter is retired (see TASKS.md's Backlog) — every *_marimo.py file under
-# /app gets its own marimo process instead, one port each, assigned
-# sequentially starting at MARIMO_PORT_START. An arbitrary number of
+# /app gets its own marimo process instead. An arbitrary number of
 # long-running servers now share the container (not a fixed two), so PIDs
 # go in an array; trap/wait below generalize accordingly.
 PIDS=()
 
-# Landing page: the one stable, externally-published port (LANDING_PORT)
-# always shows this, regenerated fresh on every container start rather than
-# hand-maintained. Written to /srv/landing — deliberately NOT under /app
-# (bind-mounted to the host) — so this generated file never shows up as an
-# untracked/dirty file in `git status` on the host, which is the exact
-# problem TASKS.md's "Stop git status..." item is about.
-LANDING_DIR=/srv/landing
-mkdir -p "$LANDING_DIR"
-
-LINKS_HTML=""
-port=$MARIMO_PORT_START_VAL
-
 shopt -s nullglob
-for nb in /app/*_marimo.py; do
-  name=$(basename "$nb" .py)
-  if [ "$port" -gt "$MARIMO_PORT_END_VAL" ]; then
-    echo "entrypoint: no free port left in ${MARIMO_PORT_START_VAL}-${MARIMO_PORT_END_VAL} for ${name}, skipping" >&2
-    continue
-  fi
+NOTEBOOKS=(/app/*_marimo.py)
+shopt -u nullglob
 
-  gosu ${U} marimo edit "$nb" --headless --no-token --host 0.0.0.0 --port "$port" --skip-update-check &
+if [ "${#NOTEBOOKS[@]}" -eq 1 ]; then
+  # Only one notebook exists — put it directly on the one stable,
+  # externally-published port instead of standing up a landing page with
+  # nothing else to link to. The moment a second *_marimo.py file shows up
+  # (Collections/Opening-prep/Tutorial, per TASKS.md), this falls through
+  # to the landing-page branch below with no further changes needed here.
+  gosu ${U} marimo edit "${NOTEBOOKS[0]}" --headless --no-token --host 0.0.0.0 --port "$LANDING_PORT_VAL" --skip-update-check &
   PIDS+=($!)
 
-  LINKS_HTML="${LINKS_HTML}
+elif [ "${#NOTEBOOKS[@]}" -gt 1 ]; then
+  # Multiple notebooks: each gets its own port from the range, sequentially,
+  # and a landing page on LANDING_PORT links to all of them. Regenerated
+  # fresh on every container start rather than hand-maintained, and written
+  # to /srv/landing — deliberately NOT under /app (bind-mounted to the
+  # host) — so this generated file never shows up as an untracked/dirty
+  # file in `git status` on the host, which is the exact problem TASKS.md's
+  # "Stop git status..." item is about.
+  LANDING_DIR=/srv/landing
+  mkdir -p "$LANDING_DIR"
+
+  LINKS_HTML=""
+  port=$MARIMO_PORT_START_VAL
+
+  for nb in "${NOTEBOOKS[@]}"; do
+    name=$(basename "$nb" .py)
+    if [ "$port" -gt "$MARIMO_PORT_END_VAL" ]; then
+      echo "entrypoint: no free port left in ${MARIMO_PORT_START_VAL}-${MARIMO_PORT_END_VAL} for ${name}, skipping" >&2
+      continue
+    fi
+
+    gosu ${U} marimo edit "$nb" --headless --no-token --host 0.0.0.0 --port "$port" --skip-update-check &
+    PIDS+=($!)
+
+    LINKS_HTML="${LINKS_HTML}
     <li class=\"nb\">
       <a href=\"#\" class=\"nb-link\" data-port=\"${port}\">${name}</a>
       <span class=\"status\" id=\"status-${port}\">checking…</span>
     </li>"
 
-  port=$((port + 1))
-done
-shopt -u nullglob
+    port=$((port + 1))
+  done
 
-# Status per notebook is checked client-side (a fetch() probe against each
-# port, run in the browser on page load) rather than baked in here at
-# container-start — that's the difference between "genuinely live" and
-# "what was running when the container booted."
-cat > "${LANDING_DIR}/index.html" <<HTML
+  # Status per notebook is checked client-side (a fetch() probe against
+  # each port, run in the browser on page load) rather than baked in here
+  # at container-start — that's the difference between "genuinely live"
+  # and "what was running when the container booted."
+  cat > "${LANDING_DIR}/index.html" <<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -114,10 +126,14 @@ ${LINKS_HTML}
 </html>
 HTML
 
-chown -R ${U}:${G} "$LANDING_DIR"
+  chown -R ${U}:${G} "$LANDING_DIR"
 
-gosu ${U} python3 -m http.server "$LANDING_PORT_VAL" --directory "$LANDING_DIR" --bind 0.0.0.0 &
-PIDS+=($!)
+  gosu ${U} python3 -m http.server "$LANDING_PORT_VAL" --directory "$LANDING_DIR" --bind 0.0.0.0 &
+  PIDS+=($!)
+
+else
+  echo "entrypoint: no *_marimo.py notebooks found under /app" >&2
+fi
 
 trap 'kill -TERM "${PIDS[@]}" 2>/dev/null' TERM INT
 wait -n "${PIDS[@]}"

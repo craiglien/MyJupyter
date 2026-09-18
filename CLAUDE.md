@@ -11,10 +11,16 @@ and a locally-built Stockfish engine.
 - `./build.sh` — builds the `jupyter-notebook` Docker image (see `config.sh` for the name),
   then separately builds the `stockfish-build` stage and `docker cp`s the compiled Stockfish
   binary out to `./stockfish-bin` on the host (gitignored artifact).
-- `./run.sh` — runs the image, mounting `./notebooks` → `/app` and `./data` → `/data`,
-  publishing Jupyter on `$HOST_PORT` (default `12345`, see `config.sh`) with no token.
+- `run.sh` (invoke as `bash run.sh` — no exec bit, by design) — runs the image, mounting
+  `./notebooks` → `/app` and `./data` → `/data`, publishing the one stable port `$HOST_PORT`
+  (default `12345`, see `config.sh`) plus a range `$MARIMO_PORT_START`-`$MARIMO_PORT_END`
+  (default `12346`-`12350`) for individual notebook processes.
 - `entrypoint.sh` — inside the container, maps the host UID/GID onto a `crun` user via
-  `gosu` before launching `jupyter notebook --ip=0.0.0.0 --NotebookApp.token=''`.
+  `gosu`, launches one `marimo edit` process per `*_marimo.py` file found under `/app`
+  (one port each, from the range above), generates a landing page at
+  `/srv/landing/index.html` linking to whichever notebooks started, and serves it on
+  `$HOST_PORT` via `python3 -m http.server`. Jupyter is retired (not launched) — see
+  `DECISIONS.md`/`TASKS.md`.
 
 ## Stack
 - Base image: `ubuntu:24.04`.

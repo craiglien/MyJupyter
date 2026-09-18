@@ -21,23 +21,36 @@ discussion 2026-09-18):
   `MARIMO_PORT_START`; extra notebooks beyond `MARIMO_PORT_END` are skipped with a
   stderr warning rather than crashing. New notebooks (Collections/Opening-prep/Tutorial,
   per TASKS.md) need zero `config.sh` changes to get a port.
-- A landing page is generated fresh into `/srv/landing/index.html` on every container
-  start (a build step, not a hand-maintained file) — deliberately NOT under `/app`
-  (bind-mounted to the host), so the generated file never shows up in `git status` on the
-  host. Served by a plain `gosu`'d `python3 -m http.server` on the one externally
-  published, stable port (`12345`, `LANDING_PORT`) — zero new dependencies.
+- Refined same-day (2026-09-18, after the first pass put `game_marimo.py` on `12346` and
+  the landing page alone on `12345`): with only one `*_marimo.py` file, standing up a
+  landing page with nothing else to link to just adds a second port to remember for no
+  benefit. `entrypoint.sh` now branches on the notebook count — exactly one notebook goes
+  directly on `LANDING_PORT` (`12345`) with no landing page at all; two or more fall
+  through to the landing-page behavior below, unchanged. The moment a second notebook
+  (Collections/Opening-prep/Tutorial, per TASKS.md) shows up, the landing page reappears
+  automatically — no further code changes needed then.
+- Landing-page branch (two or more notebooks): a page generated fresh into
+  `/srv/landing/index.html` on every container start (a build step, not a hand-maintained
+  file) — deliberately NOT under `/app` (bind-mounted to the host), so the generated file
+  never shows up in `git status` on the host. Served by a plain `gosu`'d `python3 -m
+  http.server` on `LANDING_PORT` — zero new dependencies.
 - Each notebook's "live" status on the page is a client-side JS `fetch(url, {mode:
   "no-cors"})` probe run in the browser on page load/refresh, not baked in at
   container-start — genuinely current, not just "what was running when the container
   booted."
 - Both the array-based PID/trap/wait generalization (was hardcoded to exactly two
-  processes; now handles however many `*_marimo.py` files exist plus the landing-page
-  server) and the whole flow were verified against a real rebuilt image and a running
-  `--rm` container (not just read through): confirmed no `jupyter` process exists,
-  `http://<host>:12345/` returns the generated page linking to `game_marimo` on `12346`,
-  `12346` itself responds, both server processes run as the unprivileged `crun` user, and
-  `docker stop` cleanly tears the container down (the brief "Dead" status observed was
-  mid-teardown, not a hang — the `--rm` container fully self-removed immediately after).
+  processes; now handles however many `*_marimo.py` files exist, plus the landing-page
+  server when there's more than one) and the whole flow were verified against a real
+  rebuilt image and a running container (not just read through), across both branches:
+  the original two-port pass confirmed no `jupyter` process exists, `12345` served the
+  generated landing page linking to `game_marimo` on `12346`, `12346` itself responded,
+  both server processes ran as the unprivileged `crun` user, and `docker stop` cleanly
+  tore the container down (the brief "Dead" status observed was mid-teardown, not a hang
+  — the `--rm` container fully self-removed immediately after). The same-day refinement
+  was re-verified the same way: with the single `game_marimo.py` notebook, `12345` now
+  serves marimo directly (confirmed via `curl` and the container's own startup log), and
+  `ps aux` inside the container shows only the one marimo process — no landing page, no
+  `http.server`, no `jupyter`.
 
 ## Candidate-list detail now flags "What's risky" for Inaccuracy/Blunder-tier moves
 Status: DECIDED

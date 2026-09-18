@@ -25,24 +25,99 @@ fi
 
 chown ${U}:${G} /app
 
-JUPYTER_PORT_VAL=${JUPYTER_PORT:-8888}
-MARIMO_PORT_VAL=${MARIMO_PORT:-8889}
+LANDING_PORT_VAL=${LANDING_PORT:-12345}
+MARIMO_PORT_START_VAL=${MARIMO_PORT_START:-12346}
+MARIMO_PORT_END_VAL=${MARIMO_PORT_END:-12350}
 
-#gosu ${U} id
-#gosu ${U} ls -l /app
-#echo gosu ${U} jupyter notebook --ip=0.0.0.0 --port=${JUPYTER_PORT_VAL} --no-browser --allow-root
-#/bin/bash
+# Jupyter is retired (see TASKS.md's Backlog) — every *_marimo.py file under
+# /app gets its own marimo process instead, one port each, assigned
+# sequentially starting at MARIMO_PORT_START. An arbitrary number of
+# long-running servers now share the container (not a fixed two), so PIDs
+# go in an array; trap/wait below generalize accordingly.
+PIDS=()
 
-# Two long-running servers now share the container, so this can no longer be
-# a single `exec`. Background both under gosu, forward TERM/INT to both PIDs
-# so `docker stop`/Ctrl-C still shuts down cleanly, and bring the container
-# down if either process dies unsupervised rather than limping along with
-# just one server up.
-gosu ${U} jupyter notebook --ip=0.0.0.0 --port=${JUPYTER_PORT_VAL} --no-browser --allow-root --NotebookApp.token='' &
-JUPYTER_PID=$!
+# Landing page: the one stable, externally-published port (LANDING_PORT)
+# always shows this, regenerated fresh on every container start rather than
+# hand-maintained. Written to /srv/landing — deliberately NOT under /app
+# (bind-mounted to the host) — so this generated file never shows up as an
+# untracked/dirty file in `git status` on the host, which is the exact
+# problem TASKS.md's "Stop git status..." item is about.
+LANDING_DIR=/srv/landing
+mkdir -p "$LANDING_DIR"
 
-gosu ${U} marimo edit /app/game_marimo.py --headless --no-token --host 0.0.0.0 --port ${MARIMO_PORT_VAL} --skip-update-check &
-MARIMO_PID=$!
+LINKS_HTML=""
+port=$MARIMO_PORT_START_VAL
 
-trap 'kill -TERM $JUPYTER_PID $MARIMO_PID 2>/dev/null' TERM INT
-wait -n $JUPYTER_PID $MARIMO_PID
+shopt -s nullglob
+for nb in /app/*_marimo.py; do
+  name=$(basename "$nb" .py)
+  if [ "$port" -gt "$MARIMO_PORT_END_VAL" ]; then
+    echo "entrypoint: no free port left in ${MARIMO_PORT_START_VAL}-${MARIMO_PORT_END_VAL} for ${name}, skipping" >&2
+    continue
+  fi
+
+  gosu ${U} marimo edit "$nb" --headless --no-token --host 0.0.0.0 --port "$port" --skip-update-check &
+  PIDS+=($!)
+
+  LINKS_HTML="${LINKS_HTML}
+    <li class=\"nb\">
+      <a href=\"#\" class=\"nb-link\" data-port=\"${port}\">${name}</a>
+      <span class=\"status\" id=\"status-${port}\">checking…</span>
+    </li>"
+
+  port=$((port + 1))
+done
+shopt -u nullglob
+
+# Status per notebook is checked client-side (a fetch() probe against each
+# port, run in the browser on page load) rather than baked in here at
+# container-start — that's the difference between "genuinely live" and
+# "what was running when the container booted."
+cat > "${LANDING_DIR}/index.html" <<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myjupyter-pychess notebooks</title>
+<style>
+  body { font-family: sans-serif; max-width: 40em; margin: 3em auto; }
+  ul { list-style: none; padding: 0; }
+  li.nb { display: flex; justify-content: space-between; padding: 0.5em 0; border-bottom: 1px solid #ddd; }
+  a.nb-link { font-size: 1.1em; text-decoration: none; }
+  .status { font-size: 0.9em; color: #888; }
+  .status.up { color: #2a7; }
+  .status.down { color: #c33; }
+</style>
+</head>
+<body>
+<h1>Notebooks</h1>
+<ul>
+${LINKS_HTML}
+</ul>
+<script>
+  document.querySelectorAll(".nb-link").forEach(function (a) {
+    var port = a.dataset.port;
+    a.href = "http://" + window.location.hostname + ":" + port + "/";
+  });
+
+  function checkStatus(el) {
+    var port = el.id.replace("status-", "");
+    var url = "http://" + window.location.hostname + ":" + port + "/";
+    fetch(url, { mode: "no-cors", cache: "no-store" })
+      .then(function () { el.textContent = "● up"; el.className = "status up"; })
+      .catch(function () { el.textContent = "● down"; el.className = "status down"; });
+  }
+
+  document.querySelectorAll(".status").forEach(checkStatus);
+</script>
+</body>
+</html>
+HTML
+
+chown -R ${U}:${G} "$LANDING_DIR"
+
+gosu ${U} python3 -m http.server "$LANDING_PORT_VAL" --directory "$LANDING_DIR" --bind 0.0.0.0 &
+PIDS+=($!)
+
+trap 'kill -TERM "${PIDS[@]}" 2>/dev/null' TERM INT
+wait -n "${PIDS[@]}"

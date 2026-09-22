@@ -78,6 +78,17 @@ move and a Blunder-tier move both with replies confirmed the top move keeps "Eng
 expects" while the Blunder-tier one gets "What's risky"; a second check with a synthetic
 Good-tier candidate confirmed it stays neutral too.
 
+Live-verified 2026-09-22 against the actual running container (`game_marimo.py` on port
+12345, real Stockfish) via a throwaway Playwright script (`uv run`, using the `playwright`
+package already present in the global `uv` environment — Chrome's own extension-based
+automation wasn't connected this session). Stepped through the default demo game
+(`1. e4 e5 2. Nc3 Nc6 3. Bc4 Nf6 4. Nf3 Bb4 5. Nd5 d6`), captured every ply's candidate-list
+gap values, and selected the worst one found (ply 10, rank-5 candidate `h3`, gap -0.70 —
+Inaccuracy tier). The detail panel read exactly as designed: "Clearly behind the top move.
+(Gap vs best: -0.70)" followed by "What's risky: opens the door to Black's Nxd5 — Captures
+White's Knight." Confirms the offline `FakeEngine` result generalizes to a real Stockfish
+multipv result rendered through the live marimo UI, not just the hand-built test data.
+
 ## Debug logging added to position.py/game.py, writing to /data/debug.log
 Status: DECIDED
 

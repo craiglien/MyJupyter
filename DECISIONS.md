@@ -1,5 +1,62 @@
 # DECISIONS.md
 
+## Game Collections implemented; landing page now active (2 notebooks)
+Status: DECIDED
+
+Built per the design already scoped in `TASKS.md`'s Backlog (2026-08-26): user-curated
+named lists of games to page through. Two new files:
+
+- `notebooks/game_collections.py` — `list_collections()` (names of `*.pgn` files under
+  `/data/collections`) and `list_games(name)` (every game in one file, via repeated
+  `chess.pgn.read_game()` calls on the same stream — no custom PGN-parsing logic). Each
+  game is re-exported through `chess.pgn.StringExporter` into a standalone `pgn_text`
+  string (headers + mainline moves), the same shape `game.sweep_game()` already expects
+  everywhere else — not a raw slice of the original file, so downstream code needed zero
+  changes. Named `game_collections.py`, not `collections.py` — caught during
+  implementation that `collections` is a Python stdlib module name and would have shadowed
+  it for anything imported afterward in the same process, the same class of collision
+  already documented below for `gac.py`/`gc.py`.
+- `notebooks/collections_marimo.py` — a new sibling notebook, not a change to
+  `game_marimo.py`. A collection dropdown plus First/Prev/Next/Last "which game" buttons
+  (mirroring `game_marimo.py`'s ply-stepper pattern) feed `pgn_text`; everything downstream
+  (board, candidate picker, "What's risky"/"Tempting, but don't" sections, try-your-own-
+  move) is `game_marimo.py`'s existing cell logic duplicated as-is — marimo notebooks can't
+  import cells from another notebook file, so this is copy-not-share, same as the original
+  Backlog note anticipated ("reusing the whole existing stack unchanged"). Both the
+  collection index and the ply index are *clamped on read* (`min(get_x(), len(...) - 1)`)
+  rather than reset when the underlying list changes size — switching to a shorter
+  collection or game no longer risks an out-of-range crash, and this matches the "stay on
+  whatever's currently loaded" instinct from the original design note instead of silently
+  jumping back to the start.
+
+`data/collections/*.pgn` is tracked in git (not gitignored, unlike `engine_cache.json`) —
+this is curated content, not a disposable derived artifact. Added `data/collections/`
+(with a `.gitkeep`, matching the sibling `data/`/`notebooks/` directories) but no bundled
+demo collection; a throwaway 2-game test fixture used during development was deleted
+before committing, per an explicit choice to keep the directory empty until real
+collections are added.
+
+Verified against the real running container: restarted it after adding the two new files
+(bind-mounted, no rebuild needed) and confirmed via `docker exec ps aux` that
+`entrypoint.sh`'s existing `NOTEBOOKS -gt 1` branch activated correctly —
+`collections_marimo.py` and `game_marimo.py` each got their own port (12346/12347) and the
+landing page came back up on 12345, exactly as designed when Jupyter was retired (see
+below) but never yet exercised with a real second notebook. Used a throwaway Playwright
+script (see the live-verification note on the "What's risky" entry below for why
+Playwright, not the Chrome extension) against the real Stockfish backend: picked a 2-game
+test collection, confirmed the first game auto-loaded and fully analyzed (board, candidate
+ranking, risk notes all rendered correctly), then confirmed "Next game" correctly switched
+to the second game and re-ran the whole analysis pipeline for it (`Move 1 of 8: 1.e4 —
+Best (+0.25)` vs. the first game's `Move 1 of 4: 1.f3 — Inaccuracy (-0.73)`).
+
+Also discovered during this verification: a freshly started `marimo edit` kernel does NOT
+auto-run its cells — every cell shows just source code with an individual ▶ run button
+until something (a human, or a script) triggers the notebook-wide "run all" control.
+`game_marimo.py` never showed this because its kernel had already been run interactively
+before this session touched it. This means after every container restart, EVERY notebook
+sits blank until manually run once — worth keeping in mind, and noted alongside the
+related single-shared-kernel discovery in `IDEAS.md`.
+
 ## Jupyter retired; one stable port (12345) now hosts a generated landing page
 Status: DECIDED
 

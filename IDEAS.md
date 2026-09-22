@@ -125,3 +125,14 @@ imported under that name; see `DECISIONS.md`.)
     all, unlike marimo's usual click-driven reactive-state model.
   - Right-click/context menu — noted as a fallback in case hover doesn't work well on
     touch/trackpad interactions.
+- Quick-append move box above `pgn_text` (2026-09-22): a small text input placed right
+  above the `pgn_text` cell in `game_marimo.py` — type a SAN move, it appends to the end
+  of the PGN move string and nothing else. Deliberately just one cell, no engine call of
+  its own — unlike "Try your own move" below the board, which scores the move immediately.
+  Downstream cells (`sweep_game`, the board, candidates) still re-run automatically since
+  they already depend on `pgn_text` — that's normal marimo reactivity, not something this
+  widget needs to trigger itself. Still unscoped: whether the appended move needs a
+  legality check first (parsing against the *current last position* in `records`, the same
+  way the try-your-own-move panel does) or just gets appended blind and lets `sweep_game`
+  surface a parse error if it's illegal; and the move-number/color prefix formatting
+  (`"5."` vs `"5..."`) needed to keep the resulting string valid PGN.

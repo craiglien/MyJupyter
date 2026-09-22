@@ -93,6 +93,3 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    see IDEAS.md's Idea 3 (deferred).
 7. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
    (see `IDEAS.md`) instead of an untracked snapshot.
-8. `notebooks/__marimo__/session/Chess.py.json` is a stale session artifact for a
-   different, still-nonexistent `Chess.py` (predates the `Position.ipynb` rename) —
-   unrelated to the new `game_marimo.py` file; still safe to ignore.

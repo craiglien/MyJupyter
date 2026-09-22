@@ -4,14 +4,12 @@
 (none — paused; chess is a hobby project, picking back up whenever)
 
 ## Up next
-- Follow up on the "What's risky" candidate-list note just added to
-  `render_candidate_html()`/`_describe_continuation()` (2026-08-24) — see `DECISIONS.md`.
-  Only offline-verified so far (hand-built `FakeEngine` multipv result); not yet checked
-  live in the running marimo notebook.
+(none — the "What's risky" candidate-list note is now live-verified, see `DECISIONS.md`)
 
 ## Backburner
-Marimo migration work is good enough for now — explicitly deprioritized in favor of the
-"What's risky" feature above (2026-08-24). Revisit whenever that's done.
+Marimo migration work is good enough for now — was explicitly deprioritized in favor of the
+"What's risky" feature (2026-08-24), which is now done and live-verified (2026-09-22, see
+`DECISIONS.md`). Revisiting is open again, whenever picked back up.
 
 - Return to the game side (`game.py`/`game_marimo.py`/`Game.ipynb`) — not touched in the
   last 48h (as of 2026-08-19) while attention has been on `position.py`/`Position.ipynb`,

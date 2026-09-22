@@ -136,3 +136,23 @@ imported under that name; see `DECISIONS.md`.)
   way the try-your-own-move panel does) or just gets appended blind and lets `sweep_game`
   surface a parse error if it's illegal; and the move-number/color prefix formatting
   (`"5."` vs `"5..."`) needed to keep the resulting string valid PGN.
+
+## marimo's single-shared-kernel-per-notebook behavior (discovered 2026-09-22)
+While live-verifying "What's risky" with a throwaway Playwright script, found that
+`marimo edit` binds one running kernel to the notebook file — every new browser connection
+(a second tab, a fresh Playwright session, whatever) attaches to that *same* kernel and
+inherits whatever state (current ply, board flip, etc.) was last left there. A second
+connection opens read-only ("You are currently connected as a reader") until it explicitly
+clicks "Take over," which then makes it the sole editor and demotes any other viewer to
+read-only. This is presumably intentional upstream behavior (marimo's collaborative-editing
+safety model), not a bug in anything we built — but it means today, opening this notebook
+in two tabs (e.g. one on a laptop, one on a phone, or two people at once) does NOT give two
+independent views; they fight over the one editable session.
+
+Not scoped or decided whether this is worth fixing, and if so how — options that come to
+mind: switch to `marimo run` (app/view mode) for a genuinely read-only second viewer instead
+of the reader/"Take over" editor model; accept it as-is and just document the constraint (in
+`CLAUDE.md` or a future `README.md`); or, if multiple simultaneous independent sessions ever
+actually matter, look into whether marimo supports one-kernel-per-connection at all. Worth
+revisiting if the Game Collections or Opening-prep notebooks (see `TASKS.md` Backlog) end up
+wanting multiple people/tabs poking at the same notebook concurrently.

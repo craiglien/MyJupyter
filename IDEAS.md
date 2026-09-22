@@ -172,3 +172,25 @@ same open question as the shared-kernel behavior above about whether `marimo edi
 the right mode for notebooks meant to be used like an app, versus `marimo run`, which is
 understood to auto-execute since it's meant to serve a finished app rather than an editing
 session.
+
+## Traefik (or similar) reverse proxy, to get back down to one published socket
+Not urgent — just an idea for cleaning up sockets, not a problem actually being hit today.
+
+Right now `run.sh` publishes `$HOST_PORT` plus the entire `$MARIMO_PORT_START`-
+`$MARIMO_PORT_END` range (see `config.sh`), because Docker port-publishing has to be fixed
+at `docker run` time even though which notebook claims which port inside that range is
+decided dynamically at container start (see the "Jupyter retired" decision in
+`DECISIONS.md`). That's several published sockets for what's conceptually one service. A
+reverse proxy (Traefik came up by name, but any WebSocket-capable one would do) sitting
+inside the container could instead terminate everything on the one stable `$HOST_PORT` and
+route to each notebook's internal port by path or hostname — collapsing the published range
+back down to a single socket, with the landing page's links pointing at proxied paths
+instead of raw ports.
+
+Why this hasn't been done already: when reusing one port came up before (2026-09-22, see
+the "single-notebook/no-landing-page refinement" in `DECISIONS.md`), a full reverse proxy
+was explicitly the road not taken in favor of the simpler single-notebook direct-port
+shortcut — marimo is a reactive server (WebSocket-based), so proxying it isn't just HTTP
+path rewriting, it needs WebSocket proxying done correctly too. Worth a proper look if the
+published port range ever actually becomes a nuisance (e.g. once several of the Backlog's
+planned notebooks exist at once), but not worth the added moving part today.

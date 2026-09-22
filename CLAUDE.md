@@ -16,11 +16,13 @@ and a locally-built Stockfish engine.
   (default `12345`, see `config.sh`) plus a range `$MARIMO_PORT_START`-`$MARIMO_PORT_END`
   (default `12346`-`12350`) for individual notebook processes.
 - `entrypoint.sh` — inside the container, maps the host UID/GID onto a `crun` user via
-  `gosu`, launches one `marimo edit` process per `*_marimo.py` file found under `/app`
-  (one port each, from the range above), generates a landing page at
-  `/srv/landing/index.html` linking to whichever notebooks started, and serves it on
-  `$HOST_PORT` via `python3 -m http.server`. Jupyter is retired (not launched) — see
-  `DECISIONS.md`/`TASKS.md`.
+  `gosu`, then launches one `marimo edit` process per `*_marimo.py` file found under `/app`.
+  With exactly one notebook, it runs directly on `$HOST_PORT`. With two or more (the
+  current state, since `collections_marimo.py` was added — see `DECISIONS.md`), each gets
+  its own port from the range above, and a generated landing page at
+  `/srv/landing/index.html` linking to all of them is served on `$HOST_PORT` via
+  `python3 -m http.server`. Jupyter is retired (not launched) — see `DECISIONS.md`/
+  `TASKS.md`.
 
 ## Stack
 - Base image: `ubuntu:24.04`.
@@ -33,9 +35,13 @@ and a locally-built Stockfish engine.
   architecture — not the host's. See `DECISIONS.md`.
 
 ## Where data lives
-- `./data` (mounted to `/data` in the container) — `data/engine_cache.json` is an
-  on-disk Stockfish result cache (gitignored, disposable — see `notebooks/position.py`).
-- `./notebooks` (mounted to `/app`) — the notebook files and two Python modules, layered:
+- `./data` (mounted to `/data` in the container):
+  - `data/engine_cache.json` is an on-disk Stockfish result cache (gitignored, disposable —
+    see `notebooks/position.py`).
+  - `data/collections/*.pgn` are user-curated game collections (one file per collection,
+    multiple games per file via standard multi-game PGN) — tracked in git, not gitignored;
+    add/edit files here directly, no rebuild needed. See `notebooks/game_collections.py`.
+- `./notebooks` (mounted to `/app`) — the notebook files and their Python modules, layered:
   - `notebooks/position.py` — single-position/FEN analysis primitives: build a position
     from a FEN or PGN, get ranked candidate moves and explanations from Stockfish
     (`stockfish_path = "/usr/bin/stockfish"`), and drill into a specific reply/line. Also
@@ -45,10 +51,16 @@ and a locally-built Stockfish engine.
     API (no duplicate engine-invocation or PGN-parsing logic): sweep every ply of a PGN
     for an eval curve and move-quality classification, flag critical moments, and jump to
     any named move. Driven interactively by `notebooks/Game.ipynb`.
-  - Both modules are versioned via their own `__ver__` constant (a semver string, printed
-    on import) — bump MAJOR for breaking changes to a function's signature/behavior,
-    MINOR for new backwards-compatible functions/features, PATCH for bug fixes only. Git
-    log / `DECISIONS.md` cover the *why*; there's no separate changelog file.
+  - `notebooks/game_collections.py` — lists collection files under `data/collections/` and
+    the games inside one (each re-exported as a standalone `pgn_text` string via
+    `chess.pgn`, ready for `game.sweep_game()` unchanged). Named `game_collections.py`, not
+    `collections.py` — `collections` is a Python stdlib module name and would shadow it,
+    the same class of naming collision `DECISIONS.md` documents for `gac.py`/`gc.py`.
+    Driven interactively by `notebooks/collections_marimo.py`.
+  - All three modules are versioned via their own `__ver__` constant (a semver string,
+    printed on import) — bump MAJOR for breaking changes to a function's signature/
+    behavior, MINOR for new backwards-compatible functions/features, PATCH for bug fixes
+    only. Git log / `DECISIONS.md` cover the *why*; there's no separate changelog file.
 
 ## Hard constraints
 - Never commit a pre-built, architecture-specific Stockfish binary directly (that's the bug

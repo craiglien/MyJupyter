@@ -39,9 +39,9 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
      at startup instead of a hardcoded triple-quoted string; a text box lets you overwrite
      it. Switching games becomes a data-file edit, nothing to commit, state still there
      next time.
-   - Phase 2: this is exactly the plumbing the Game Collections item below needs anyway —
-     "selecting a game auto-fills pgn_text" is the same mechanism, just fed from a chosen
-     collection instead of a single text box.
+   - Phase 2: this is exactly the plumbing Game Collections already needed (now shipped,
+     see `DECISIONS.md`) — "selecting a game auto-fills pgn_text" is the same mechanism,
+     just fed from a chosen collection instead of a single text box.
 2. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
    `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.
    Direction settled via MCQ discussion:
@@ -51,9 +51,9 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
      style"). Engine facts and LLM narrative stay visually separate, same reasoning as the
      v2 hybrid-narrative idea below.
    - Famous-game references get grounded against a local PGN collection (not just trusted
-     from Gemini's training) — depends on the Game Collections item below existing first,
-     or at least a "famous games" collection file, so answers are checked against real
-     PGN data instead of the model inventing specifics.
+     from Gemini's training) — Game Collections (see `DECISIONS.md`) now exists for this;
+     needs at least a "famous games" collection file added under `./data/collections/`, so
+     answers are checked against real PGN data instead of the model inventing specifics.
    - Gemini API key stored under a new `.auth/` directory at the repo root (gitignored,
      added 2026-09-09), read by `config.sh`/`run.sh` and passed into the container as an
      env var — same untracked-on-host delivery pattern already used for `LOCAL_UID`/
@@ -82,32 +82,17 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    - Still unscoped: exact mechanism for marking the focal ply, how many plies before/after
      count as "before and after," and whether a first cut can ship with engine-only
      breakdown before the Gemini plumbing exists.
-4. Game Collections (scoped and ready, not yet built — 2026-08-26): user-curated named
-   lists of games to page through (e.g. "Favorite Capablanca Endgames," "Ruy Lopez Opening
-   Traps"). Design settled via MCQ discussion:
-   - Data: `./data/collections/*.pgn`, one file per collection (filename → collection
-     name), multiple games per file via standard multi-game PGN — bind-mounted, so adding
-     or editing a collection needs no rebuild.
-   - Code: new `collections.py` module listing available collection files and the games
-     inside one, built on `position.parse_pgn()`/`chess.pgn`'s existing multi-game-read
-     support — no duplicated PGN-parsing or analysis logic.
-   - UI: a new sibling notebook (not a change to `game_marimo.py`) — collection picker,
-     then Next/Prev buttons to step through games in the chosen collection (mirroring the
-     existing ply-stepper's button pattern in `game_marimo.py`). Selecting a game
-     auto-fills the new notebook's own `pgn_text`-equivalent, reusing the whole existing
-     candidate-picker/risk-notes/try-your-own-move stack unchanged; if nothing's selected
-     yet, it stays on whatever's currently loaded rather than resetting to empty.
-5. Don't-list "moves toward the center" selection heuristic: v1 (shipped) only scores
+4. Don't-list "moves toward the center" selection heuristic: v1 (shipped) only scores
    captures and checks as "tempting"; a concrete rule for center-ward quiet moves (e.g.
    destination square in the central 4 or 16 squares) was left out. Add if it turns out
    to matter in practice.
-6. Flesh out `README.md` (currently a 16-byte stub) per the content rule in `CLAUDE.md`:
+5. Flesh out `README.md` (currently a 16-byte stub) per the content rule in `CLAUDE.md`:
    what the project is, how it's structured, and copy-pasteable, up-to-date build/run/test
    commands.
-7. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
+6. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
    see IDEAS.md's Idea 3 (deferred).
-8. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
+7. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
    (see `IDEAS.md`) instead of an untracked snapshot.
-9. `notebooks/__marimo__/session/Chess.py.json` is a stale session artifact for a
+8. `notebooks/__marimo__/session/Chess.py.json` is a stale session artifact for a
    different, still-nonexistent `Chess.py` (predates the `Position.ipynb` rename) —
    unrelated to the new `game_marimo.py` file; still safe to ignore.

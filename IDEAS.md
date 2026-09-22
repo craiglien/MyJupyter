@@ -154,5 +154,21 @@ mind: switch to `marimo run` (app/view mode) for a genuinely read-only second vi
 of the reader/"Take over" editor model; accept it as-is and just document the constraint (in
 `CLAUDE.md` or a future `README.md`); or, if multiple simultaneous independent sessions ever
 actually matter, look into whether marimo supports one-kernel-per-connection at all. Worth
-revisiting if the Game Collections or Opening-prep notebooks (see `TASKS.md` Backlog) end up
-wanting multiple people/tabs poking at the same notebook concurrently.
+revisiting if the Opening-prep or Tutorial notebooks (see `TASKS.md` Backlog) end up wanting
+multiple people/tabs poking at the same notebook concurrently.
+
+## `marimo edit` doesn't auto-run a freshly started kernel (discovered 2026-09-22)
+Found while verifying Game Collections right after a container restart: a brand-new
+`marimo edit` kernel shows every cell as bare, unexecuted source code (a ▶ run button, no
+output) until something triggers the notebook-wide "run all" control (a small floating
+button, bottom-right of the editor — same one `DECISIONS.md`'s "marimo's floating run-all
+control can't be repositioned" entry already refers to). `game_marimo.py` never appeared
+to have this problem earlier this session only because its kernel had already been run
+interactively before — not because the behavior differs per notebook.
+
+Practical consequence: after every container restart, EVERY notebook sits blank until
+someone opens it and clicks that button once. Not scoped whether this is worth changing —
+same open question as the shared-kernel behavior above about whether `marimo edit` is even
+the right mode for notebooks meant to be used like an app, versus `marimo run`, which is
+understood to auto-execute since it's meant to serve a finished app rather than an editing
+session.

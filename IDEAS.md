@@ -38,9 +38,6 @@ even though a plain container restart looks like it should be enough.
 - The current `ARCH=x86-64` / `ARCH=armv8` build selection is a conservative baseline
   (no AVX2/BMI2/dotprod). Could offer an opt-in optimized build (e.g. via a Docker
   build-arg) if engine analysis speed becomes a bottleneck.
-- `notebooks/__marimo__/session/Chess.py.json` exists but there's no `Chess.py` — marimo
-  was apparently pointed at `Chess.ipynb` at some point. Worth deciding whether marimo is
-  an intentional alternate notebook interface for this project or just a one-off.
 
 ## Deeper explanations for the reply move and beyond
 Three options considered for explaining *why* the engine expects a given reply (and

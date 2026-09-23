@@ -66,7 +66,9 @@ RUN python3 --version && python --version
 # is unnecessary weight for that alone.
 RUN pip install ipython
 
-RUN pip install pandas numpy matplotlib seaborn
+# Only matplotlib is actually imported anywhere (game.py's show_sweep()) —
+# pandas/numpy/seaborn were never used by any module.
+RUN pip install matplotlib
 
 RUN pip install "httpx<0.24"
 

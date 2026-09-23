@@ -78,6 +78,16 @@ RUN pip install marimo
 
 COPY --from=stockfish-build /build/src/stockfish /usr/bin/stockfish
 
+# Build-time provenance (see build.sh/DECISIONS.md) — baked in as a plain
+# file, not just build-args, since ARGs don't survive past the build into
+# a running container. entrypoint.sh reads this to compare against the
+# *current* source commit (passed in fresh by run.sh at container start)
+# and flag if the image is stale relative to the checked-out source.
+ARG BUILD_COMMIT=unknown
+ARG BUILD_COMMIT_SUBJECT=unknown
+ARG BUILD_EPOCH=0
+RUN printf '%s\n' "$BUILD_COMMIT" "$BUILD_COMMIT_SUBJECT" "$BUILD_EPOCH" > /build_info.txt
+
 WORKDIR /app
 
 COPY entrypoint.sh /entrypoint.sh

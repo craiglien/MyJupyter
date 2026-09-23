@@ -86,10 +86,7 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    captures and checks as "tempting"; a concrete rule for center-ward quiet moves (e.g.
    destination square in the central 4 or 16 squares) was left out. Add if it turns out
    to matter in practice.
-5. Flesh out `README.md` (currently a 16-byte stub) per the content rule in `CLAUDE.md`:
-   what the project is, how it's structured, and copy-pasteable, up-to-date build/run/test
-   commands.
-6. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
+5. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
    see IDEAS.md's Idea 3 (deferred).
-7. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
+6. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
    (see `IDEAS.md`) instead of an untracked snapshot.

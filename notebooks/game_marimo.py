@@ -6,27 +6,23 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
+    import os
+
     import marimo as mo
 
     import game
     import position
 
-    return game, mo, position
-
-
-@app.cell
-def _(mo):
     # Same RUN_COMMIT* env vars entrypoint.sh's startup banner already
-    # prints to the terminal (see run.sh/DECISIONS.md) — read here too so
-    # it's visible right in the notebook, not just the TTY you launched it
-    # from.
-    import os
-
+    # prints to the terminal (see run.sh/DECISIONS.md) — printed here too,
+    # right alongside position/game's own version prints, rather than as a
+    # separate rendered cell further down the page.
     _commit = os.environ.get("RUN_COMMIT", "unknown")
     _subject = os.environ.get("RUN_COMMIT_SUBJECT", "unknown")
     _reltime = os.environ.get("RUN_COMMIT_RELTIME", "unknown")
-    mo.md(f"*Running from commit `{_commit}` — {_subject} ({_reltime})*")
-    return
+    print(f"commit {_commit} — {_subject} ({_reltime})")
+
+    return game, mo, position
 
 
 @app.cell

@@ -74,6 +74,9 @@ and a locally-built Stockfish engine.
 - Never install software via pipe-to-shell (`curl|bash`, `wget -O- | sh`, etc.); prefer
   verified release artifacts and explicit installation steps, matching how Stockfish is
   already built from vendored source rather than downloaded and piped.
-- `README.md` must document what the project is, how it's structured, and how it's run,
-  built, and tested — any command the user is meant to run themselves belongs there,
-  copy-pasteable and kept up to date. Currently a stub; see `TASKS.md`.
+- No `README.md` right now (removed 2026-09-23) — this is a private, single-user hobby
+  repo, and a stub README wasn't earning its place. If this repo is ever published
+  publicly (e.g., pushed to GitHub as a public repo), add one back FIRST, documenting what
+  the project is, how it's structured, and how it's run, built, and tested — any command a
+  stranger would need to run themselves belongs there, copy-pasteable and kept up to date.
+  See `DECISIONS.md`.

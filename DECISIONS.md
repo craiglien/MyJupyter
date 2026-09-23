@@ -1,5 +1,19 @@
 # DECISIONS.md
 
+## README.md removed for now; add back before ever going public
+Status: DECIDED
+
+Removed 2026-09-23 (by the operator directly) — it was a 16-byte stub nobody was reading,
+for a private, single-user hobby repo with no external audience. A stub wasn't earning its
+place, and the "flesh it out" backlog item (`TASKS.md`) was just sitting there indefinitely
+with no real urgency behind it.
+
+The one condition that changes this: if this repo is ever published publicly (e.g., pushed
+to GitHub as a public repo), a real `README.md` must be added back FIRST — what the project
+is, how it's structured, how to build/run/test it, copy-pasteable commands a stranger could
+actually follow. Recorded as a hard constraint in `CLAUDE.md` so it isn't forgotten at
+exactly the moment it'd matter most.
+
 ## Startup provenance banner: source commit vs. image build vs. container start
 Status: DECIDED
 

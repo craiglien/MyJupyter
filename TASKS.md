@@ -42,6 +42,23 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    - Phase 2: this is exactly the plumbing Game Collections already needed (now shipped,
      see `DECISIONS.md`) — "selecting a game auto-fills pgn_text" is the same mechanism,
      just fed from a chosen collection instead of a single text box.
+   - Phase 3, idea stage (2026-09-23, researched via Gemini — also motivated by a separate
+     annoyance: `marimo edit` rewrites the notebook's own `__generated_with` header on disk
+     just from browser interaction, another source of incidental diffs beyond `pgn_text`):
+     serve notebooks via `marimo run` instead of `marimo edit`. Read-only app mode — no code
+     editing from the frontend at all, so the `.py` file is never written to, period; `git
+     status` stays clean by construction rather than by moving one variable out. `mo.ui.*`
+     widgets (buttons, text boxes, dropdowns) still work fine in this mode, only cell-source
+     editing is disabled. A second strategy Gemini offered alongside this one was explicitly
+     rejected (not detailed here since it wasn't wanted).
+     - Depends on Phase 1/2 above landing first: today, changing which game you're looking
+       at means editing `pgn_text`'s source directly — the entire reason `marimo edit` mode
+       is used at all right now. Once that's UI-widget-driven (Phase 1's text box, or
+       Phase 2's collection picker) instead of a hardcoded string, switching to `marimo run`
+       stops losing any real functionality.
+     - Not scoped: whether this is an entrypoint.sh flag change, a per-notebook choice, or
+       needs both modes available (edit for actually authoring new notebook cells, run for
+       day-to-day play).
 2. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
    `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.
    Direction settled via MCQ discussion:

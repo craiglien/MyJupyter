@@ -1,5 +1,47 @@
 #!/bin/bash
 
+# --- Provenance banner ---
+# Three points in time that can silently drift apart over a long-lived,
+# bind-mounted-source setup like this one: when the source was last
+# committed, when the image was built from it, and when this container
+# actually started. Printed first, before anything else, so it's the first
+# thing visible in `bash run.sh`'s terminal output. See DECISIONS.md.
+_fmt_age() {
+  # Seconds elapsed -> a short human string ("5m ago", "3h ago", "2d ago").
+  local secs=$1
+  if [ "$secs" -lt 60 ]; then
+    echo "${secs}s ago"
+  elif [ "$secs" -lt 3600 ]; then
+    echo "$((secs / 60))m ago"
+  elif [ "$secs" -lt 86400 ]; then
+    echo "$((secs / 3600))h ago"
+  else
+    echo "$((secs / 86400))d ago"
+  fi
+}
+
+if [ -f /build_info.txt ]; then
+  mapfile -t _build_info < /build_info.txt
+  BUILD_COMMIT=${_build_info[0]}
+  BUILD_COMMIT_SUBJECT=${_build_info[1]}
+  BUILD_EPOCH=${_build_info[2]}
+fi
+BUILD_EPOCH=${BUILD_EPOCH:-0}
+BUILD_AGE=$(_fmt_age "$(( $(date +%s) - BUILD_EPOCH ))")
+
+echo "=================================================================="
+echo "Source commit (as of 'bash run.sh'): ${RUN_COMMIT:-unknown} — ${RUN_COMMIT_SUBJECT:-unknown} (${RUN_COMMIT_RELTIME:-unknown})"
+echo "Image built from commit:             ${BUILD_COMMIT:-unknown} — ${BUILD_COMMIT_SUBJECT:-unknown} (${BUILD_AGE})"
+echo "Container starting:                  now"
+if [ -n "$RUN_COMMIT" ] && [ "${BUILD_COMMIT:-unknown}" != "unknown" ] && [ "$RUN_COMMIT" != "$BUILD_COMMIT" ]; then
+  echo ""
+  echo "⚠  Image was built from a DIFFERENT commit than what's checked out now."
+  echo "   Run 'bash build.sh' to pick up the latest source."
+else
+  echo "✓  Image matches the current source commit."
+fi
+echo "=================================================================="
+
 U=crun
 G=${U}
 

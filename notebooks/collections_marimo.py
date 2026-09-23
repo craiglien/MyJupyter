@@ -17,6 +17,21 @@ def _():
 
 @app.cell
 def _(mo):
+    # Same RUN_COMMIT* env vars entrypoint.sh's startup banner already
+    # prints to the terminal (see run.sh/DECISIONS.md) — read here too so
+    # it's visible right in the notebook, not just the TTY you launched it
+    # from.
+    import os
+
+    _commit = os.environ.get("RUN_COMMIT", "unknown")
+    _subject = os.environ.get("RUN_COMMIT_SUBJECT", "unknown")
+    _reltime = os.environ.get("RUN_COMMIT_RELTIME", "unknown")
+    mo.md(f"*Running from commit `{_commit}` — {_subject} ({_reltime})*")
+    return
+
+
+@app.cell
+def _(mo):
     # Which game, within the chosen collection. Mirrors get_ply/set_ply's
     # getter/setter/button pattern below, one level up — this steps through
     # games in a collection, not plies within one game.

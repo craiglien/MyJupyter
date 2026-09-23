@@ -1,5 +1,43 @@
 # DECISIONS.md
 
+## Startup provenance banner: source commit vs. image build vs. container start
+Status: DECIDED
+
+Requested (2026-09-23) after a `bash build.sh && bash run.sh` cycle, prompted by wanting a
+way to visually confirm — every time the container starts — that what's running actually
+matches the source being discussed, given this repo is expected to be used for 10-15
+years: "we know we're running the most recent build and everything's consistent." Three
+points in time can silently drift apart in this bind-mounted-source setup: when the source
+was last committed, when the image was actually built from it, and when a given container
+started (which could be hours/days after either of the above, if the container's been left
+running).
+
+Implementation, split across the three scripts that already exist for this purpose:
+- `build.sh` computes the current commit (short hash + subject) and a build epoch timestamp
+  on the host, and passes them as `--build-arg`s.
+- The `Dockerfile`'s final stage bakes those into `/build_info.txt` inside the image — a
+  plain file, since build ARGs themselves don't survive into a running container.
+- `run.sh` computes the commit fresh again (short hash + subject + `git`'s own `%cr`
+  relative-date string, e.g. "12 minutes ago") at the moment you actually run the
+  container, and passes those as env vars — deliberately re-computed here rather than
+  reused from build time, since source can change between a build and a later run.
+- `entrypoint.sh` prints a banner, first thing, comparing the run-time commit (env vars)
+  against the build-time commit (`/build_info.txt`): a ✓ line if they match, or a ⚠ with
+  an explicit "run `bash build.sh`" nudge if they don't.
+
+Portability: only `git log --format=%cr` supplies human-relative time on the host side
+(`build.sh`/`run.sh`), since those run on whatever OS the developer is using (BSD date on
+macOS, GNU date on Linux) — no `date -d` math there. `entrypoint.sh` always runs inside the
+Ubuntu container, so its own age computation (`$(date +%s)` minus the baked-in epoch) has
+no portability concern.
+
+Verified against a rebuilt image, in isolated foreground containers (separate from the live
+session): confirmed the ✓ path with the real current commit on both sides, and separately
+forced a ⚠ mismatch by passing a fake `RUN_COMMIT` env var, confirming the warning path
+and its wording both fire correctly. Caught and fixed a real bug during this verification —
+`IFS=$'\n' read -r A B C < file` does not split a 3-line file into three variables (`read`
+only ever consumes one line); replaced with `mapfile -t`.
+
 ## Game Collections implemented; landing page now active (2 notebooks)
 Status: DECIDED
 

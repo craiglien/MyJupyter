@@ -50,7 +50,16 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
      status` stays clean by construction rather than by moving one variable out. `mo.ui.*`
      widgets (buttons, text boxes, dropdowns) still work fine in this mode, only cell-source
      editing is disabled. A second strategy Gemini offered alongside this one was explicitly
-     rejected (not detailed here since it wasn't wanted).
+     rejected: copy the tracked notebook into a gitignored working directory (e.g. a
+     `.something/` dir) and run/edit that copy instead, so all the runtime disk-writes land
+     on the untracked copy while the tracked original stays pristine. Rejected as extra
+     mechanics for the same outcome `marimo run` gets for free — it needs a copy-in step
+     before each session, a manual sync-back step whenever a real code edit (not just
+     `pgn_text`/game selection) needs to actually reach git, and now two on-disk copies of
+     every notebook that can silently drift, with no automatic way to tell which one is
+     "real" at a glance. Same shape as the manual revert-then-restore dance already used all
+     session for `pgn_text` edits, just formalized into a parallel directory structure and
+     an ongoing sync burden, instead of removing the write entirely.
      - Depends on Phase 1/2 above landing first: today, changing which game you're looking
        at means editing `pgn_text`'s source directly — the entire reason `marimo edit` mode
        is used at all right now. Once that's UI-widget-driven (Phase 1's text box, or

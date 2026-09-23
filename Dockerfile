@@ -58,27 +58,15 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON
 # Verify the Python version
 RUN python3 --version && python --version
 
-RUN pip install jupyter
-
-# The "Restart Kernel and Run All Cells" confirmation dialog's "Do not ask
-# me again" checkbox only sets an in-memory flag on the browser tab's
-# session object — it's never persisted, so it reappears on every page
-# reload. This settings override is the actual persistent switch for it;
-# lives under a system-wide config path (not $HOME) since /home/crun is
-# re-created fresh by entrypoint.sh on every container start.
-RUN mkdir -p /usr/local/etc/jupyter/labconfig && \
-    printf '%s\n' \
-        '{' \
-        '  "@jupyterlab/apputils-extension:sessionDialogs": {' \
-        '    "skipKernelRestartDialog": true' \
-        '  }' \
-        '}' \
-        > /usr/local/etc/jupyter/labconfig/overrides.json
+# Jupyter itself is retired (see DECISIONS.md/CLAUDE.md) — only IPython's
+# display() machinery is still needed, for position.py/game.py's Jupyter-
+# style display(HTML(...))/display(SVG(...)) calls (used when show=True,
+# still relevant for the not-yet-converted Position.ipynb/Game.ipynb).
+# The full `jupyter` metapackage (notebook/lab server, all its JS assets)
+# is unnecessary weight for that alone.
+RUN pip install ipython
 
 RUN pip install pandas numpy matplotlib seaborn
-RUN pip install django
-RUN pip install prettytable
-RUN pip install cryptography
 
 RUN pip install "httpx<0.24"
 
@@ -93,5 +81,5 @@ WORKDIR /app
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Start Jupyter Notebook
+# Launch entrypoint.sh's marimo notebook(s) + landing page
 CMD ["/entrypoint.sh"]

@@ -15,6 +15,21 @@ def _():
 
 
 @app.cell
+def _(mo):
+    # Same RUN_COMMIT* env vars entrypoint.sh's startup banner already
+    # prints to the terminal (see run.sh/DECISIONS.md) — read here too so
+    # it's visible right in the notebook, not just the TTY you launched it
+    # from.
+    import os
+
+    _commit = os.environ.get("RUN_COMMIT", "unknown")
+    _subject = os.environ.get("RUN_COMMIT_SUBJECT", "unknown")
+    _reltime = os.environ.get("RUN_COMMIT_RELTIME", "unknown")
+    mo.md(f"*Running from commit `{_commit}` — {_subject} ({_reltime})*")
+    return
+
+
+@app.cell
 def _():
     # Edit and re-run to try a different game — same "paste a full PGN,
     # headers and all" convention as Position.ipynb/Game.ipynb.

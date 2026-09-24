@@ -33,15 +33,24 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    games it shows up as a code diff needing a commit, even though it's working state, not
    a code change. Two-phase plan, Phase 1 a strict subset of Phase 2 so doing it first
    doesn't box in the second:
-   - Phase 1 (small, self-contained): move the "current game" value out of
+   - Phase 1 (small, self-contained). **Status: NOT DONE** — `game_marimo.py`'s `pgn_text`
+     is still a hardcoded triple-quoted string; every game switch there still dirties git,
+     unchanged since this item was first written. Move the "current game" value out of
      `game_marimo.py` into a file under `./data` (bind-mounted, gitignored like
      `engine_cache.json`/`debug.log`, survives container restarts). The notebook reads it
      at startup instead of a hardcoded triple-quoted string; a text box lets you overwrite
-     it. Switching games becomes a data-file edit, nothing to commit, state still there
-     next time.
-   - Phase 2: this is exactly the plumbing Game Collections already needed (now shipped,
-     see `DECISIONS.md`) — "selecting a game auto-fills pgn_text" is the same mechanism,
-     just fed from a chosen collection instead of a single text box.
+     it. **Milestone (done when):** switching games in `game_marimo.py`'s own UI leaves
+     `git status` clean — no more revert-then-restore dance needed for it specifically.
+   - Phase 2. **Status: SHIPPED, but as a sibling notebook, not as `game_marimo.py` itself**
+     — Game Collections (`collections_marimo.py`, see `DECISIONS.md`) built exactly this
+     mechanism ("selecting a game auto-fills pgn_text"), just as its own notebook rather
+     than a change to `game_marimo.py`. Open question, not yet decided: is that split (one
+     notebook for one ad-hoc pasted game, another for browsing curated collections) the
+     actual desired end state, or should Phase 1's text box and Phase 2's collection picker
+     both live in `game_marimo.py` itself, making `collections_marimo.py` redundant? Worth
+     settling before investing in Phase 1, since the answer changes what Phase 1 should
+     even build. **Milestone (done when):** this question has an answer, recorded here or
+     in `DECISIONS.md`.
    - Phase 3, idea stage (2026-09-23, researched via Gemini — also motivated by a separate
      annoyance: `marimo edit` rewrites the notebook's own `__generated_with` header on disk
      just from browser interaction, another source of incidental diffs beyond `pgn_text`):
@@ -68,6 +77,10 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
      - Not scoped: whether this is an entrypoint.sh flag change, a per-notebook choice, or
        needs both modes available (edit for actually authoring new notebook cells, run for
        day-to-day play).
+     - **Status: NOT DONE**, blocked on Phase 1/2's open question above. **Milestone (done
+       when):** a full session of normal use (switch games, step through plies, flip board,
+       try candidate moves) leaves `git status` completely clean, with no manual
+       revert-then-restore needed at all.
 2. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
    `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.
    Direction settled via MCQ discussion:

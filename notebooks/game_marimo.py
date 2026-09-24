@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.24.2"
 app = marimo.App(width="full")
 
 
@@ -21,18 +21,73 @@ def _():
     _subject = os.environ.get("RUN_COMMIT_SUBJECT", "unknown")
     _reltime = os.environ.get("RUN_COMMIT_RELTIME", "unknown")
     print(f"commit {_commit} — {_subject} ({_reltime})")
-
-    return game, mo, position
+    return game, mo, os, position
 
 
 @app.cell
 def _():
-    # Edit and re-run to try a different game — same "paste a full PGN,
-    # headers and all" convention as Position.ipynb/Game.ipynb.
-    pgn_text = """
+    # The current game lives in a file under ./data (gitignored, bind-mounted,
+    # survives container restarts) instead of a hardcoded string here —
+    # switching games via the box below, or hand-editing the file directly in
+    # a real text editor, no longer dirties git. See TASKS.md Backlog item 1 /
+    # DECISIONS.md. DEFAULT_PGN is only ever used to seed the file the very
+    # first time it doesn't exist yet (e.g. a fresh clone).
+    CURRENT_GAME_PATH = "/data/current_game.pgn"
+    DEFAULT_PGN = """
     1. e4 e5 2. Nc3 Nf6 3. Nf3 Bb4 4. a3 Bxc3 5. bxc3 d5 6. exd5 Nxd5 7. Nxe5 Qe7 8.
     Qe2 O-O *
     """
+    return CURRENT_GAME_PATH, DEFAULT_PGN
+
+
+@app.cell
+def _(CURRENT_GAME_PATH, DEFAULT_PGN, mo, os):
+    def _read_disk_pgn():
+        if os.path.exists(CURRENT_GAME_PATH):
+            with open(CURRENT_GAME_PATH) as _f:
+                return _f.read()
+        with open(CURRENT_GAME_PATH, "w") as _f:
+            _f.write(DEFAULT_PGN)
+        return DEFAULT_PGN
+
+    # mo.state(), not a plain variable — both buttons below need to update
+    # the same value from their own on_click callbacks, and have that
+    # update reliably seen by every other cell (including after a
+    # hand-edit-and-reload, not just after typing in the box).
+    get_pgn_text, set_pgn_text = mo.state(_read_disk_pgn(), allow_self_loops=True)
+    return get_pgn_text, set_pgn_text
+
+
+@app.cell
+def _(CURRENT_GAME_PATH, get_pgn_text, mo, set_pgn_text):
+    pgn_editor = mo.ui.text_area(
+        value=get_pgn_text(), label="Current game (PGN)", full_width=True
+    )
+
+    def _load(_):
+        text = pgn_editor.value
+        with open(CURRENT_GAME_PATH, "w") as f:
+            f.write(text)
+        set_pgn_text(lambda v: text)
+
+    def _reload_from_disk(_):
+        with open(CURRENT_GAME_PATH) as f:
+            set_pgn_text(lambda v: f.read())
+
+    load_button = mo.ui.button(label="Load game", on_click=_load)
+    reload_button = mo.ui.button(label="↻ Reload from disk", on_click=_reload_from_disk)
+
+    mo.vstack([
+        mo.md("### Current game"),
+        pgn_editor,
+        mo.hstack([load_button, reload_button], justify="start"),
+    ])
+    return
+
+
+@app.cell
+def _(get_pgn_text):
+    pgn_text = get_pgn_text()
     return (pgn_text,)
 
 

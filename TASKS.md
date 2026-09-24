@@ -33,14 +33,14 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    games it shows up as a code diff needing a commit, even though it's working state, not
    a code change. Two-phase plan, Phase 1 a strict subset of Phase 2 so doing it first
    doesn't box in the second:
-   - Phase 1 (small, self-contained). **Status: NOT DONE** — `game_marimo.py`'s `pgn_text`
-     is still a hardcoded triple-quoted string; every game switch there still dirties git,
-     unchanged since this item was first written. Move the "current game" value out of
-     `game_marimo.py` into a file under `./data` (bind-mounted, gitignored like
-     `engine_cache.json`/`debug.log`, survives container restarts). The notebook reads it
-     at startup instead of a hardcoded triple-quoted string; a text box lets you overwrite
-     it. **Milestone (done when):** switching games in `game_marimo.py`'s own UI leaves
-     `git status` clean — no more revert-then-restore dance needed for it specifically.
+   - Phase 1. **Status: DONE (2026-09-24)** — `pgn_text` now lives in
+     `data/current_game.pgn` (gitignored, bind-mounted, survives restarts), read at
+     notebook startup instead of a hardcoded string. A text box + "Load game" button in
+     `game_marimo.py` writes edits back to it; a "Reload from disk" button picks up
+     hand-edits made outside the notebook too. Milestone verified against a real
+     container: switching games via either path leaves `git status` completely clean — no
+     more revert-then-restore dance needed for `game_marimo.py` specifically. See
+     `DECISIONS.md`.
    - Phase 2. **Status: SHIPPED, and the sibling-notebook split is the intended end state**
      (decided 2026-09-23 — Unix philosophy: many small single-purpose notebooks over one
      big multi-purpose one, see `DECISIONS.md`). Game Collections (`collections_marimo.py`)

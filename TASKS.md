@@ -41,16 +41,11 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
      at startup instead of a hardcoded triple-quoted string; a text box lets you overwrite
      it. **Milestone (done when):** switching games in `game_marimo.py`'s own UI leaves
      `git status` clean — no more revert-then-restore dance needed for it specifically.
-   - Phase 2. **Status: SHIPPED, but as a sibling notebook, not as `game_marimo.py` itself**
-     — Game Collections (`collections_marimo.py`, see `DECISIONS.md`) built exactly this
-     mechanism ("selecting a game auto-fills pgn_text"), just as its own notebook rather
-     than a change to `game_marimo.py`. Open question, not yet decided: is that split (one
-     notebook for one ad-hoc pasted game, another for browsing curated collections) the
-     actual desired end state, or should Phase 1's text box and Phase 2's collection picker
-     both live in `game_marimo.py` itself, making `collections_marimo.py` redundant? Worth
-     settling before investing in Phase 1, since the answer changes what Phase 1 should
-     even build. **Milestone (done when):** this question has an answer, recorded here or
-     in `DECISIONS.md`.
+   - Phase 2. **Status: SHIPPED, and the sibling-notebook split is the intended end state**
+     (decided 2026-09-23 — Unix philosophy: many small single-purpose notebooks over one
+     big multi-purpose one, see `DECISIONS.md`). Game Collections (`collections_marimo.py`)
+     stays its own notebook rather than being absorbed into `game_marimo.py`; Phase 1's text
+     box belongs in `game_marimo.py` on its own terms, not superseded by this.
    - Phase 3, idea stage (2026-09-23, researched via Gemini — also motivated by a separate
      annoyance: `marimo edit` rewrites the notebook's own `__generated_with` header on disk
      just from browser interaction, another source of incidental diffs beyond `pgn_text`):

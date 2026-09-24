@@ -1,5 +1,25 @@
 # DECISIONS.md
 
+## Notebook architecture: many small single-purpose notebooks, not one merged one
+Status: DECIDED
+
+Settled 2026-09-23, prompted by an open question left in `TASKS.md`'s Phase 2 (Game
+Collections shipped as its own notebook, `collections_marimo.py`, rather than as a change
+to `game_marimo.py` — was that split intentional, or should they merge?). Decided
+explicitly: Unix philosophy, small is beautiful — many small single-purpose notebooks
+instead of one large multi-purpose one.
+
+Concretely: `game_marimo.py` stays "paste one ad-hoc PGN and study it"; `collections_marimo.py`
+stays "browse curated named collections of games." Neither absorbs the other's mechanism.
+This resolves Phase 1's scope too — its "move `pgn_text` to a data file + text box" work
+belongs in `game_marimo.py` on its own terms, not superseded by Game Collections' existence.
+
+This is meant as a standing principle for future notebooks too (Opening-prep, Tutorial, per
+`TASKS.md`'s Backlog), not just this one case — default to a new sibling notebook for a new
+distinct purpose, rather than growing an existing notebook to cover it, even when there's
+mechanism to share (share the underlying module — `position.py`/`game.py`/
+`game_collections.py` — not the notebook UI).
+
 ## README.md removed for now; add back before ever going public
 Status: DECIDED
 

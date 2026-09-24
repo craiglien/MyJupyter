@@ -1,5 +1,36 @@
 # DECISIONS.md
 
+## game_marimo.py's pgn_text moved to a disk file (Phase 1 of the git-dirty-state fix)
+Status: DECIDED
+
+Implemented 2026-09-24. Design settled via MCQ discussion:
+- Load trigger is an explicit "Load game" button (text area + button), not live-reactive
+  on every keystroke — matches the existing "Try your own move" pattern already in this
+  notebook, and avoids triggering a slow Stockfish sweep mid-paste.
+- Hand-editing `data/current_game.pgn` directly (in a real text editor) is explicitly
+  supported, via a separate "↻ Reload from disk" button — not just the in-notebook text
+  box.
+- The file stays single-game only, even though hand-editing raised the idea of letting it
+  hold several games. A multi-game picker here would rebuild Game Collections' job inside
+  `game_marimo.py`, directly against the "many small notebooks" decision above — rejected
+  for that reason. If more games in one editable place is ever wanted, that belongs in a
+  `data/collections/*.pgn` file instead.
+
+Implementation: `mo.state()` holds the current PGN text, seeded on first run by reading
+`data/current_game.pgn` (falling back to a small `DEFAULT_PGN` and writing it out if the
+file doesn't exist yet — e.g. a fresh clone). "Load game" writes the text box's content to
+the file and updates the state; "Reload from disk" re-reads the file into the same state,
+picking up external edits. Both paths converge on the one `mo.state`, so every other cell
+(the board, candidates, "What's risky") reacts the same way regardless of which button was
+used.
+
+Verified against a real container: initial load pre-fills the text box from the seeded
+file; editing + "Load game" writes the file and re-runs analysis correctly; hand-editing
+the file directly + "Reload from disk" updates both the text box and analysis to match.
+Milestone check: after switching games through the new UI, `git status` reports "nothing
+to commit, working tree clean" — `game_marimo.py` itself is never touched by normal use
+anymore.
+
 ## Notebook architecture: many small single-purpose notebooks, not one merged one
 Status: DECIDED
 

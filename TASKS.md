@@ -27,56 +27,7 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
   one position's candidates.
 
 ## Backlog
-1. Stop `git status` from showing a modified file just from normal use (idea stage,
-   discussed 2026-09-09, not yet written down until now): `pgn_text` — "which game am I
-   looking at" — lives inside the git-tracked `game_marimo.py`, so every time you switch
-   games it shows up as a code diff needing a commit, even though it's working state, not
-   a code change. Two-phase plan, Phase 1 a strict subset of Phase 2 so doing it first
-   doesn't box in the second:
-   - Phase 1. **Status: DONE (2026-09-24)** — `pgn_text` now lives in
-     `data/current_game.pgn` (gitignored, bind-mounted, survives restarts), read at
-     notebook startup instead of a hardcoded string. A text box + "Load game" button in
-     `game_marimo.py` writes edits back to it; a "Reload from disk" button picks up
-     hand-edits made outside the notebook too. Milestone verified against a real
-     container: switching games via either path leaves `git status` completely clean — no
-     more revert-then-restore dance needed for `game_marimo.py` specifically. See
-     `DECISIONS.md`.
-   - Phase 2. **Status: SHIPPED, and the sibling-notebook split is the intended end state**
-     (decided 2026-09-23 — Unix philosophy: many small single-purpose notebooks over one
-     big multi-purpose one, see `DECISIONS.md`). Game Collections (`collections_marimo.py`)
-     stays its own notebook rather than being absorbed into `game_marimo.py`; Phase 1's text
-     box belongs in `game_marimo.py` on its own terms, not superseded by this.
-   - Phase 3, idea stage (2026-09-23, researched via Gemini — also motivated by a separate
-     annoyance: `marimo edit` rewrites the notebook's own `__generated_with` header on disk
-     just from browser interaction, another source of incidental diffs beyond `pgn_text`):
-     serve notebooks via `marimo run` instead of `marimo edit`. Read-only app mode — no code
-     editing from the frontend at all, so the `.py` file is never written to, period; `git
-     status` stays clean by construction rather than by moving one variable out. `mo.ui.*`
-     widgets (buttons, text boxes, dropdowns) still work fine in this mode, only cell-source
-     editing is disabled. A second strategy Gemini offered alongside this one was explicitly
-     rejected: copy the tracked notebook into a gitignored working directory (e.g. a
-     `.something/` dir) and run/edit that copy instead, so all the runtime disk-writes land
-     on the untracked copy while the tracked original stays pristine. Rejected as extra
-     mechanics for the same outcome `marimo run` gets for free — it needs a copy-in step
-     before each session, a manual sync-back step whenever a real code edit (not just
-     `pgn_text`/game selection) needs to actually reach git, and now two on-disk copies of
-     every notebook that can silently drift, with no automatic way to tell which one is
-     "real" at a glance. Same shape as the manual revert-then-restore dance already used all
-     session for `pgn_text` edits, just formalized into a parallel directory structure and
-     an ongoing sync burden, instead of removing the write entirely.
-     - Depends on Phase 1/2 above landing first: today, changing which game you're looking
-       at means editing `pgn_text`'s source directly — the entire reason `marimo edit` mode
-       is used at all right now. Once that's UI-widget-driven (Phase 1's text box, or
-       Phase 2's collection picker) instead of a hardcoded string, switching to `marimo run`
-       stops losing any real functionality.
-     - Not scoped: whether this is an entrypoint.sh flag change, a per-notebook choice, or
-       needs both modes available (edit for actually authoring new notebook cells, run for
-       day-to-day play).
-     - **Status: NOT DONE**, blocked on Phase 1/2's open question above. **Milestone (done
-       when):** a full session of normal use (switch games, step through plies, flip board,
-       try candidate moves) leaves `git status` completely clean, with no manual
-       revert-then-restore needed at all.
-2. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
+1. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
    `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.
    Direction settled via MCQ discussion:
    - Keeps the existing Stockfish candidate-picker for verified move quality, plus a
@@ -101,7 +52,7 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
      AI adds plain-language *why*/story on top, rather than trusting the AI's own risk
      judgment standalone. "What's risky" was called out as genuinely good education worth
      building on, not just a UI tweak.
-3. Tutorial notebook (idea stage, not scoped — 2026-09-11): a new sibling notebook +
+2. Tutorial notebook (idea stage, not scoped — 2026-09-11): a new sibling notebook +
    module, focused on walking through one whole game as a guided lesson. Direction settled
    via MCQ discussion:
    - Game input: paste a PGN directly, same convention as `game_marimo.py` — no picker/AI
@@ -116,11 +67,11 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    - Still unscoped: exact mechanism for marking the focal ply, how many plies before/after
      count as "before and after," and whether a first cut can ship with engine-only
      breakdown before the Gemini plumbing exists.
-4. Don't-list "moves toward the center" selection heuristic: v1 (shipped) only scores
+3. Don't-list "moves toward the center" selection heuristic: v1 (shipped) only scores
    captures and checks as "tempting"; a concrete rule for center-ward quiet moves (e.g.
    destination square in the central 4 or 16 squares) was left out. Add if it turns out
    to matter in practice.
-5. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
+4. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
    see IDEAS.md's Idea 3 (deferred).
-6. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
+5. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
    (see `IDEAS.md`) instead of an untracked snapshot.

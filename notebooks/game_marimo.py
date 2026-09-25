@@ -108,8 +108,15 @@ def _(get_pgn_text):
 
 
 @app.cell
-def _(game, pgn_text):
-    records = game.sweep_game(pgn_text)
+def _(game, mo, pgn_text):
+    # sweep_game() calls Stockfish once per ply — a long game (dozens of
+    # moves) can take a noticeable few seconds, with nothing else on the
+    # page to indicate anything's happening in the meantime.
+    with mo.status.spinner(
+        title="Analyzing game…",
+        subtitle="Running Stockfish on every ply — longer games take longer",
+    ):
+        records = game.sweep_game(pgn_text)
     return (records,)
 
 

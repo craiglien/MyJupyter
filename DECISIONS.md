@@ -1,5 +1,40 @@
 # DECISIONS.md
 
+## Notebooks served via marimo run, not marimo edit (Phase 3 of the git-dirty-state fix)
+Status: DECIDED
+
+Implemented 2026-09-24, right after Phase 1. Decided to switch fully to `marimo run` rather
+than keep `marimo edit` available as a fallback: all actual notebook authoring happens by
+editing the `.py` file directly (Claude Code, or by hand), never through marimo's own
+in-browser code editor, so edit mode's authoring capability wasn't actually being used.
+`entrypoint.sh` now launches both notebooks with `marimo run ... --watch --include-code`
+instead of `marimo edit`: `--watch` hot-reloads on a file change with no container restart
+needed (this is what marimo edit's own reactivity was already implicitly relied on for
+the operator's browser interactions; now it also covers Claude-Code-made source edits),
+and `--include-code` keeps the source visible, matching the previous experience (`marimo
+run` hides it by default otherwise).
+
+Bonus, not the original goal: `marimo run` auto-executes the notebook on load — fixes the
+"must manually click run-all" annoyance already noted in `IDEAS.md`, which was specific to
+`marimo edit`'s fresh-kernel behavior.
+
+Real regression discovered during verification: `marimo run` doesn't display stdout/
+`print()` output at all, only actual cell output. This silently made the commit-metadata
+line (and `position.py`/`game.py`/`game_collections.py`'s own "X ver Y" import-time
+prints) invisible, undoing the "put the metadata right there" work from earlier the same
+day. Fixed the commit-metadata line by switching it from `print()` to `mo.md()` in both
+notebooks' imports cell, so it renders as real cell output again. Left the shared modules'
+own version prints invisible under `marimo run` — an accepted tradeoff (an
+import-succeeded confirmation, not something actively being checked) rather than touching
+`position.py`/`game.py`/`game_collections.py` just for this.
+
+Verified against a rebuilt image, in an isolated container: both notebooks show "Running
+X.py ⚡" (not "Edit X.py 📝"); the full analysis pipeline renders with no manual run-all
+click; `--watch` picked up a subsequent edit to the notebook files live, no restart
+needed; Phase 1's Load/Reload-from-disk buttons still write and re-analyze correctly
+under the new mode; and the commit-metadata line renders correctly in both notebooks
+after the `print()` → `mo.md()` fix.
+
 ## game_marimo.py's pgn_text moved to a disk file (Phase 1 of the git-dirty-state fix)
 Status: DECIDED
 

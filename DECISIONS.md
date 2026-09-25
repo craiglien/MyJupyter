@@ -66,6 +66,17 @@ Milestone check: after switching games through the new UI, `git status` reports 
 to commit, working tree clean" — `game_marimo.py` itself is never touched by normal use
 anymore.
 
+Follow-up fix (2026-09-25): two problems surfaced from actual use. First, `DEFAULT_PGN` had
+been hand-edited down to an empty string at some point, which would crash
+`game.sweep_game()` on any fresh setup missing `data/current_game.pgn` — restored to a real
+fallback game. Second, clicking "Load game" or "Reload from disk" gave no visible feedback
+at all (only an indirect clue: the board/move caption further down the page happening to
+change) — added a small confirmation message after each. Verified in an isolated container:
+both buttons now show their confirmation text, and deleting `data/current_game.pgn` plus a
+genuine fresh boot (container restart with the marimo session cache cleared too — a plain
+restart alone isn't enough, since marimo persists session state across it) confirms
+`DEFAULT_PGN` correctly re-seeds the file instead of crashing.
+
 ## Notebook architecture: many small single-purpose notebooks, not one merged one
 Status: DECIDED
 

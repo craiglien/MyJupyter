@@ -14,16 +14,13 @@ def _():
     import position
 
     # Same RUN_COMMIT* env vars entrypoint.sh's startup banner already
-    # prints to the terminal (see run.sh/DECISIONS.md). Rendered as real
-    # cell output (mo.md), not print() — marimo run (see DECISIONS.md's
-    # Phase 3 entry) doesn't display stdout/print() output at all, only
-    # actual cell output. position.py/game.py's own "X ver Y" prints stay
-    # invisible under marimo run for the same reason — accepted tradeoff,
-    # not worth touching those shared modules just for this.
+    # prints to the terminal (see run.sh/DECISIONS.md) — printed here too,
+    # right alongside position/game's own version prints, rather than as a
+    # separate rendered cell further down the page.
     _commit = os.environ.get("RUN_COMMIT", "unknown")
     _subject = os.environ.get("RUN_COMMIT_SUBJECT", "unknown")
     _reltime = os.environ.get("RUN_COMMIT_RELTIME", "unknown")
-    mo.md(f"*commit `{_commit}` — {_subject} ({_reltime})*")
+    print(f"commit {_commit} — {_subject} ({_reltime})")
     return game, mo, os, position
 
 
@@ -34,7 +31,8 @@ def _():
     # switching games via the box below, or hand-editing the file directly in
     # a real text editor, no longer dirties git. See DECISIONS.md. DEFAULT_PGN
     # is only ever used to seed the file the very first time it doesn't exist
-    # yet (e.g. a fresh clone).
+    # yet (e.g. a fresh clone) — it must stay a real, parseable game, since an
+    # empty/blank fallback would crash game.sweep_game() on a fresh setup.
     CURRENT_GAME_PATH = "/data/current_game.pgn"
     DEFAULT_PGN = """
     1. e4 e5 2. Nc3 Nf6 3. Nf3 Bb4 4. a3 Bxc3 5. bxc3 d5 6. exd5 Nxd5 7. Nxe5 Qe7 8.
@@ -62,7 +60,16 @@ def _(CURRENT_GAME_PATH, DEFAULT_PGN, mo, os):
 
 
 @app.cell
-def _(CURRENT_GAME_PATH, get_pgn_text, mo, set_pgn_text):
+def _(mo):
+    # Confirmation text shown after Load/Reload — clicking either button
+    # otherwise gives no visible feedback at all; you'd have to notice the
+    # board/move caption further down the page changed.
+    get_load_status, set_load_status = mo.state("", allow_self_loops=True)
+    return get_load_status, set_load_status
+
+
+@app.cell
+def _(CURRENT_GAME_PATH, get_load_status, get_pgn_text, mo, set_load_status, set_pgn_text):
     pgn_editor = mo.ui.text_area(
         value=get_pgn_text(), label="Current game (PGN)", full_width=True
     )
@@ -72,18 +79,24 @@ def _(CURRENT_GAME_PATH, get_pgn_text, mo, set_pgn_text):
         with open(CURRENT_GAME_PATH, "w") as f:
             f.write(text)
         set_pgn_text(lambda v: text)
+        set_load_status(lambda v: "✓ Game loaded and saved.")
 
     def _reload_from_disk(_):
         with open(CURRENT_GAME_PATH) as f:
-            set_pgn_text(lambda v: f.read())
+            text = f.read()
+        set_pgn_text(lambda v: text)
+        set_load_status(lambda v: "✓ Reloaded from disk.")
 
     load_button = mo.ui.button(label="Load game", on_click=_load)
     reload_button = mo.ui.button(label="↻ Reload from disk", on_click=_reload_from_disk)
+
+    status = get_load_status()
 
     mo.vstack([
         mo.md("### Current game"),
         pgn_editor,
         mo.hstack([load_button, reload_button], justify="start"),
+        mo.md(f"*{status}*") if status else mo.md(""),
     ])
     return
 

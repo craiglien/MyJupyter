@@ -15,13 +15,17 @@ def _():
     import position
 
     # Same RUN_COMMIT* env vars entrypoint.sh's startup banner already
-    # prints to the terminal (see run.sh/DECISIONS.md) — printed here too,
-    # right alongside position/game/game_collections's own version prints,
-    # rather than as a separate rendered cell further down the page.
+    # prints to the terminal (see run.sh/DECISIONS.md). Rendered as real
+    # cell output (mo.md), not print() — marimo run (see DECISIONS.md's
+    # Phase 3 entry) doesn't display stdout/print() output at all, only
+    # actual cell output. position.py/game.py/game_collections.py's own
+    # "X ver Y" prints stay invisible under marimo run for the same
+    # reason — accepted tradeoff, not worth touching those shared modules
+    # just for this.
     _commit = os.environ.get("RUN_COMMIT", "unknown")
     _subject = os.environ.get("RUN_COMMIT_SUBJECT", "unknown")
     _reltime = os.environ.get("RUN_COMMIT_RELTIME", "unknown")
-    print(f"commit {_commit} — {_subject} ({_reltime})")
+    mo.md(f"*commit `{_commit}` — {_subject} ({_reltime})*")
 
     return game, game_collections, mo, position
 

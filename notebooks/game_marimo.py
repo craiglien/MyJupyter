@@ -32,9 +32,9 @@ def _():
     # The current game lives in a file under ./data (gitignored, bind-mounted,
     # survives container restarts) instead of a hardcoded string here —
     # switching games via the box below, or hand-editing the file directly in
-    # a real text editor, no longer dirties git. See TASKS.md Backlog item 1 /
-    # DECISIONS.md. DEFAULT_PGN is only ever used to seed the file the very
-    # first time it doesn't exist yet (e.g. a fresh clone).
+    # a real text editor, no longer dirties git. See DECISIONS.md. DEFAULT_PGN
+    # is only ever used to seed the file the very first time it doesn't exist
+    # yet (e.g. a fresh clone).
     CURRENT_GAME_PATH = "/data/current_game.pgn"
     DEFAULT_PGN = """
     1. e4 e5 2. Nc3 Nf6 3. Nf3 Bb4 4. a3 Bxc3 5. bxc3 d5 6. exd5 Nxd5 7. Nxe5 Qe7 8.

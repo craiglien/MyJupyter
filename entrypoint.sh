@@ -87,7 +87,13 @@ if [ "${#NOTEBOOKS[@]}" -eq 1 ]; then
   # nothing else to link to. The moment a second *_marimo.py file shows up
   # (Collections/Opening-prep/Tutorial, per TASKS.md), this falls through
   # to the landing-page branch below with no further changes needed here.
-  gosu ${U} marimo edit "${NOTEBOOKS[0]}" --headless --no-token --host 0.0.0.0 --port "$LANDING_PORT_VAL" --skip-update-check &
+  # marimo run, not marimo edit — see DECISIONS.md's Phase 3 entry. Notebook
+  # authoring happens by editing the .py file directly (Claude Code, or by
+  # hand), never through marimo's own in-browser code editor; --watch picks
+  # up any such file edit and reloads automatically, no restart needed.
+  # --include-code keeps the source visible in the browser, matching the
+  # previous edit-mode experience (marimo run hides it by default).
+  gosu ${U} marimo run "${NOTEBOOKS[0]}" --headless --no-token --watch --include-code --host 0.0.0.0 --port "$LANDING_PORT_VAL" &
   PIDS+=($!)
 
 elif [ "${#NOTEBOOKS[@]}" -gt 1 ]; then
@@ -111,7 +117,9 @@ elif [ "${#NOTEBOOKS[@]}" -gt 1 ]; then
       continue
     fi
 
-    gosu ${U} marimo edit "$nb" --headless --no-token --host 0.0.0.0 --port "$port" --skip-update-check &
+    # marimo run, not marimo edit — see the single-notebook branch above and
+    # DECISIONS.md's Phase 3 entry for why.
+    gosu ${U} marimo run "$nb" --headless --no-token --watch --include-code --host 0.0.0.0 --port "$port" &
     PIDS+=($!)
 
     LINKS_HTML="${LINKS_HTML}

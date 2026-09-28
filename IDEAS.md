@@ -134,41 +134,27 @@ imported under that name; see `DECISIONS.md`.)
   surface a parse error if it's illegal; and the move-number/color prefix formatting
   (`"5."` vs `"5..."`) needed to keep the resulting string valid PGN.
 
-## marimo's single-shared-kernel-per-notebook behavior (discovered 2026-09-22)
-While live-verifying "What's risky" with a throwaway Playwright script, found that
-`marimo edit` binds one running kernel to the notebook file — every new browser connection
-(a second tab, a fresh Playwright session, whatever) attaches to that *same* kernel and
-inherits whatever state (current ply, board flip, etc.) was last left there. A second
-connection opens read-only ("You are currently connected as a reader") until it explicitly
-clicks "Take over," which then makes it the sole editor and demotes any other viewer to
-read-only. This is presumably intentional upstream behavior (marimo's collaborative-editing
-safety model), not a bug in anything we built — but it means today, opening this notebook
-in two tabs (e.g. one on a laptop, one on a phone, or two people at once) does NOT give two
-independent views; they fight over the one editable session.
+## marimo's single-shared-kernel-per-notebook behavior — RESOLVED by Phase 3
+Discovered 2026-09-22 under `marimo edit`: one running kernel per notebook file, every new
+browser connection (a second tab, a fresh Playwright session) attaching to that *same*
+kernel and inheriting whatever state was last left there — a second connection opened
+read-only until it clicked "Take over," fighting over the one editable session.
 
-Not scoped or decided whether this is worth fixing, and if so how — options that come to
-mind: switch to `marimo run` (app/view mode) for a genuinely read-only second viewer instead
-of the reader/"Take over" editor model; accept it as-is and just document the constraint (in
-`CLAUDE.md` or a future `README.md`); or, if multiple simultaneous independent sessions ever
-actually matter, look into whether marimo supports one-kernel-per-connection at all. Worth
-revisiting if the Opening-prep or Tutorial notebooks (see `TASKS.md` Backlog) end up wanting
-multiple people/tabs poking at the same notebook concurrently.
+Resolved as a side effect of switching to `marimo run` (2026-09-24, see `DECISIONS.md`'s
+Phase 3 entry) — empirically confirmed 2026-09-28: two simultaneous connections to the same
+`marimo run` notebook show no "Take over"/"Reconnected" banner at all, both fully
+interactive independently. Not deeply verified beyond that (e.g. whether stepping through
+plies in one tab affects another's view), but the specific annoyance this entry was about —
+fighting over one editable session — is gone.
 
-## `marimo edit` doesn't auto-run a freshly started kernel (discovered 2026-09-22)
-Found while verifying Game Collections right after a container restart: a brand-new
-`marimo edit` kernel shows every cell as bare, unexecuted source code (a ▶ run button, no
-output) until something triggers the notebook-wide "run all" control (a small floating
-button, bottom-right of the editor — same one `DECISIONS.md`'s "marimo's floating run-all
-control can't be repositioned" entry already refers to). `game_marimo.py` never appeared
-to have this problem earlier this session only because its kernel had already been run
-interactively before — not because the behavior differs per notebook.
+## `marimo edit` doesn't auto-run a freshly started kernel — RESOLVED by Phase 3
+Discovered 2026-09-22: a brand-new `marimo edit` kernel showed every cell as bare,
+unexecuted source code until the floating "run all" control was clicked — meaning every
+notebook sat blank after each container restart until someone opened it and clicked that.
 
-Practical consequence: after every container restart, EVERY notebook sits blank until
-someone opens it and clicks that button once. Not scoped whether this is worth changing —
-same open question as the shared-kernel behavior above about whether `marimo edit` is even
-the right mode for notebooks meant to be used like an app, versus `marimo run`, which is
-understood to auto-execute since it's meant to serve a finished app rather than an editing
-session.
+Resolved by switching to `marimo run` (2026-09-24, see `DECISIONS.md`'s Phase 3 entry),
+which auto-executes on load since it's meant to serve a finished app rather than an editing
+session — confirmed during Phase 3's own verification.
 
 ## Traefik (or similar) reverse proxy, to get back down to one published socket
 Not urgent — just an idea for cleaning up sockets, not a problem actually being hit today.

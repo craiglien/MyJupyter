@@ -1,5 +1,27 @@
 # DECISIONS.md
 
+## Candidate-move explanations: deterministic templates over board facts, LLM-ready seam
+Status: DECIDED
+
+Implemented 2026-10-04 in `position.py` 0.10.0. Chose template-generated English over an
+LLM for v1: it runs offline, needs no API key or container egress, produces the same text
+every time, and every claim can be checked against the board. The LLM option stays open as
+a later layer.
+
+Design: `classify_move()` returns raw facts only (undefended pieces left after the move,
+undefended enemy pieces the moved piece attacks, central-square and back-rank development
+flags). `describe_move_reason()` turns them into sentences, and the generic "quiet move"
+line is now only the fallback when there's nothing concrete to say. Keeping facts and
+wording separate is what lets a future LLM step consume the same facts without touching
+engine or board code (the seam described in `IDEAS.md`'s v2 entry).
+
+Limitations accepted for v1: "undefended" is static (no exchange counting), so a piece
+defended only by a more valuable piece still reads as defended. Output is capped at two
+hanging and two attacked pieces per move to keep the panel readable.
+
+Verification: offline checks in an isolated container (see `position.py` commit message for
+the cases); candidate panel rendered in the real notebook with no tracebacks.
+
 ## Notebooks served via marimo run, not marimo edit (Phase 3 of the git-dirty-state fix)
 Status: DECIDED
 

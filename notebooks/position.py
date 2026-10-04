@@ -12,7 +12,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.10.0"
+__ver__ = "0.11.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -666,6 +666,37 @@ def render_candidate_html(root_board, candidates, idx, user):
     <div>{svg_move}</div>
     <div style="margin-left: 20px; font-size: 16px;">{mv_out}<hr>{detail_out}</div>
     </div>"""
+
+
+def render_candidate_previews_html(root_board, candidates, user):
+    """A row of small board thumbnails, one per candidate, each showing the
+    position after that candidate's move. Hovering a thumbnail enlarges it
+    in place via plain CSS :hover — no engine call, no server round-trip,
+    and no change to whichever candidate is selected below. Built from the
+    same render_board_svg() the detail view uses, so a preview matches the
+    full diagram exactly."""
+    cards = []
+    for idx, c in enumerate(candidates, start=1):
+        temp_board = root_board.copy()
+        temp_board.push(c["move"])
+        svg = render_board_svg(temp_board, c["move"], user, size=300)
+        cards.append(
+            f'<div class="cand-preview"><div class="cand-thumb">{svg}</div>'
+            f'<div class="cand-label">{idx}. {c["san"]}</div></div>'
+        )
+    return f"""
+    <style>
+    .cand-previews {{ display: flex; flex-wrap: wrap; gap: 12px; }}
+    .cand-preview {{ width: 120px; }}
+    .cand-thumb {{ position: relative; width: 120px; height: 120px; }}
+    .cand-thumb svg {{ width: 120px; height: 120px; }}
+    .cand-preview:hover .cand-thumb svg {{
+        position: absolute; z-index: 10; width: 300px; height: 300px;
+        background: white; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }}
+    .cand-label {{ font-size: 13px; text-align: center; }}
+    </style>
+    <div class="cand-previews">{"".join(cards)}</div>"""
 
 
 def _display_ranked_moves(root_board, info, user, header, show=True, full_detail=1):

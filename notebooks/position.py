@@ -12,7 +12,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.9.0"
+__ver__ = "0.10.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -222,6 +222,11 @@ def classify_move(board, move):
     temp_board = board.copy()
     temp_board.push(move)
 
+    mover = board.turn
+    opponent = not mover
+    piece = board.piece_at(move.from_square)
+    back_rank = 0 if mover == chess.WHITE else 7
+
     return {
         "castle_side": castle_side,
         "en_passant": en_passant,
@@ -229,7 +234,43 @@ def classify_move(board, move):
         "promotion": move.promotion,
         "checkmate": temp_board.is_checkmate(),
         "check": board.gives_check(move),
+        # Positional facts, all read from the position AFTER the move. Raw
+        # (square, Piece) pairs and booleans only — describe_move_reason()
+        # turns them into sentences, keeping facts separate from wording.
+        "hangs_after": _undefended_pieces(temp_board, mover),
+        "threatens_after": [
+            (sq, piece_there)
+            for sq, piece_there in _undefended_pieces(temp_board, opponent)
+            if sq in temp_board.attacks(move.to_square)
+        ],
+        "central": move.to_square in CENTER_SQUARES,
+        "develops": piece is not None and piece.piece_type in (chess.KNIGHT, chess.BISHOP)
+                    and chess.square_rank(move.from_square) == back_rank,
+        "mover_color": mover,
+        "moved_piece": piece,
     }
+
+
+CENTER_SQUARES = {chess.D4, chess.E4, chess.D5, chess.E5}
+
+
+def _undefended_pieces(board, color):
+    """(square, Piece) pairs for `color`'s non-king pieces that the opponent
+    attacks and nothing of `color` defends. Static: no exchange counting,
+    so a piece defended only by a more valuable one still shows as defended."""
+    out = []
+    for sq, piece in board.piece_map().items():
+        if piece.color != color or piece.piece_type == chess.KING:
+            continue
+        if board.is_attacked_by(not color, sq) and not board.is_attacked_by(color, sq):
+            out.append((sq, piece))
+    return out
+
+
+def _piece_phrase(square, piece):
+    """e.g. "White's Knight on f3" — shared wording for the positional sentences."""
+    color_name = "White's" if piece.color == chess.WHITE else "Black's"
+    return f"{color_name} {chess.piece_name(piece.piece_type).capitalize()} on {chess.square_name(square)}"
 
 
 def describe_move_reason(class_info):
@@ -252,6 +293,17 @@ def describe_move_reason(class_info):
         reasons.append("Delivers checkmate.")
     elif class_info["check"]:
         reasons.append("Puts the opponent in check.")
+
+    for sq, piece in class_info["hangs_after"][:2]:
+        reasons.append(f"Leaves {_piece_phrase(sq, piece)} undefended.")
+    for sq, piece in class_info["threatens_after"][:2]:
+        reasons.append(f"Attacks the undefended {_piece_phrase(sq, piece)}.")
+
+    if class_info["develops"]:
+        name = chess.piece_name(class_info["moved_piece"].piece_type)
+        reasons.append(f"Develops the {name} off its back rank.")
+    if class_info["central"]:
+        reasons.append("Puts a piece on a central square.")
 
     if not reasons:
         reasons.append("A quiet move — improves piece placement without immediate tactics.")

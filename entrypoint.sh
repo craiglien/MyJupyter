@@ -135,6 +135,12 @@ elif [ "${#NOTEBOOKS[@]}" -gt 1 ]; then
   # each port, run in the browser on page load) rather than baked in here
   # at container-start — that's the difference between "genuinely live"
   # and "what was running when the container booted."
+  # Same provenance as the terminal banner above, shown on the page too so
+  # the operator can see which commit they're looking at without a terminal.
+  html_escape() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' <<< "$1"; }
+  PROV_HTML="<p class=\"prov\">Source commit <code>${RUN_COMMIT:-unknown}</code> — $(html_escape "${RUN_COMMIT_SUBJECT:-unknown}") (${RUN_COMMIT_RELTIME:-unknown})<br>
+Image built from <code>${BUILD_COMMIT:-unknown}</code> — $(html_escape "${BUILD_COMMIT_SUBJECT:-unknown}") (${BUILD_AGE})</p>"
+
   cat > "${LANDING_DIR}/index.html" <<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -149,10 +155,12 @@ elif [ "${#NOTEBOOKS[@]}" -gt 1 ]; then
   .status { font-size: 0.9em; color: #888; }
   .status.up { color: #2a7; }
   .status.down { color: #c33; }
+  .prov { font-size: 0.85em; color: #888; margin: 0 0 1.5em; }
 </style>
 </head>
 <body>
 <h1>Notebooks</h1>
+${PROV_HTML}
 <ul>
 ${LINKS_HTML}
 </ul>

@@ -253,6 +253,16 @@ def _(candidates, mo, position):
 
 
 @app.cell
+def _(board, candidates, mo, position):
+    # Thumbnails for every candidate, hover-enlarged with CSS. Pure display —
+    # hovering never changes the selected candidate below.
+    candidate_previews = mo.Html(
+        position.render_candidate_previews_html(board.board, candidates, board.user)
+    )
+    return (candidate_previews,)
+
+
+@app.cell
 def _(board, candidate_radio, candidates, mo, position):
     idx = candidate_radio.value
     detail_html = mo.Html(position.render_candidate_html(board.board, candidates, idx, board.user))
@@ -313,13 +323,13 @@ def _(analyze_button, board, candidates, mo, move_text, position):
 
 
 @app.cell
-def _(analyze_button, candidate_radio, detail_html, mo, move_text, result):
+def _(analyze_button, candidate_previews, candidate_radio, detail_html, mo, move_text, result):
     # Side by side, per explicit request: candidate picker on the left,
     # try-your-own-move on the right — so the result renders right next
     # to the button that produced it, not scrolled away below.
     mo.hstack(
         [
-            mo.vstack([candidate_radio, detail_html]),
+            mo.vstack([candidate_previews, candidate_radio, detail_html]),
             mo.vstack([
                 mo.md("### Try your own move"),
                 mo.hstack([move_text, analyze_button], justify="start"),

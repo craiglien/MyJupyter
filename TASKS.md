@@ -67,11 +67,7 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    - Still unscoped: exact mechanism for marking the focal ply, how many plies before/after
      count as "before and after," and whether a first cut can ship with engine-only
      breakdown before the Gemini plumbing exists.
-3. Don't-list "moves toward the center" selection heuristic: v1 (shipped) only scores
-   captures and checks as "tempting"; a concrete rule for center-ward quiet moves (e.g.
-   destination square in the central 4 or 16 squares) was left out. Add if it turns out
-   to matter in practice.
-4. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
+3. `notebooks/game.py` has no `explain_reply()`-chained narrative for critical moments —
    see IDEAS.md's Idea 3 (deferred).
-5. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
+4. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
    (see `IDEAS.md`) instead of an untracked snapshot.

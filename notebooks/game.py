@@ -6,7 +6,7 @@ from IPython.display import HTML, display
 
 import position
 
-__ver__ = "0.5.0"
+__ver__ = "0.6.0"
 print(f"game ver {__ver__}")
 
 log = logging.getLogger("chess.game")
@@ -133,24 +133,42 @@ def show_sweep(records):
     {rows}
     </table>"""
     display(HTML(table_html))
+    eval_curve_figure(records)
+    plt.show()
 
+
+def eval_curve_figure(records):
+    """The eval-over-time chart for a sweep_game() result, as a matplotlib
+    Figure. Doesn't show it — a marimo cell can return the figure directly
+    to display it, and show_sweep() calls plt.show() on it for Jupyter."""
     # Clip mate-range evals for the chart's y-axis, or one forced-mate ply
     # would flatten every earlier, real eval to an indistinguishable line
     # near zero.
     xs = [r["ply"] for r in records]
     ys = [max(-10, min(10, r["white_eval"])) for r in records]
-    plt.figure(figsize=(10, 3))
-    plt.plot(xs, ys)
-    plt.axhline(0, color="gray", linewidth=0.5)
-    plt.xlabel("Ply")
-    plt.ylabel("Eval (pawns, White POV)")
-    plt.title("Evaluation over the game")
-    plt.show()
+    fig, ax = plt.subplots(figsize=(10, 3))
+    ax.plot(xs, ys)
+    ax.axhline(0, color="gray", linewidth=0.5)
+    ax.set_xlabel("Ply")
+    ax.set_ylabel("Eval (pawns, White POV)")
+    ax.set_title("Evaluation over the game")
+    return fig
 
 
 def critical_moments(records, top_n=3):
     """The top_n plies with the largest centipawn loss."""
     return sorted(records, key=lambda r: r["loss"], reverse=True)[:top_n]
+
+
+def critical_moments_html(records, top_n=3):
+    """The top_n biggest swings as a short HTML list (move, SAN, quality,
+    loss), for display next to the eval chart. Pure — no display() call."""
+    items = "".join(
+        f"<li><b>{r['move_number']}{'.' if r['mover'] == 'White' else '...'} {r['san']}</b> — "
+        f"{r['quality']}, lost {r['loss_display']}</li>"
+        for r in critical_moments(records, top_n=top_n)
+    )
+    return f"<p><b>Biggest swings</b></p><ul>{items}</ul>"
 
 
 def _explore_record(r, user):

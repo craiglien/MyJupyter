@@ -195,6 +195,31 @@ def _(get_flipped, get_ply, mo, records, set_flipped, set_ply):
     return
 
 
+@app.cell
+def _(game, mo, records, set_ply):
+    # Jump straight to a move by number, e.g. "23w" or "23..." — same ply
+    # setter Next/Prev use, so the board and candidates below follow it.
+    goto_text = mo.ui.text(label="Go to move (e.g. 23w, 23b, 23...)", placeholder="23w")
+    def _go(_):
+        idx = game.ply_for_move(records, goto_text.value)
+        if idx is not None:
+            set_ply(lambda v: idx)
+    goto_button = mo.ui.button(label="Go", on_click=_go)
+    return goto_button, goto_text
+
+
+@app.cell
+def _(game, goto_button, goto_text, mo, records):
+    # Separate cell from the box above: marimo won't let a cell read a
+    # widget's value in the same cell that created it.
+    unknown = goto_text.value.strip() and game.ply_for_move(records, goto_text.value) is None
+    mo.vstack([
+        mo.hstack([goto_text, goto_button], justify="start", align="end"),
+        mo.md("*No such move in this game.*") if unknown else mo.md(""),
+    ])
+    return
+
+
 @app.cell(hide_code=True)
 def _(get_flipped, get_ply, mo, position, records):
     ply = get_ply()

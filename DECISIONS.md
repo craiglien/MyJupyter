@@ -1,5 +1,23 @@
 # DECISIONS.md
 
+## Don't-list pool includes quiet moves to the four central squares (position 0.12.0)
+Status: DECIDED
+
+Implemented 2026-10-05. The don't-list's candidate pool used to be captures and checks
+only, so a quiet move that walks into a pawn capture (e.g. Qd4 met by ...cxd4) could never
+be flagged. The pool now also includes quiet moves whose destination is d4, e4, d5, or e5
+(the standard four central squares). Anything in the pool is still scored by the engine
+and only shown if it grades Inaccuracy or worse, so the wider pool only surfaces central
+moves that are actually bad.
+
+Rejected: the 16-square center (c3-f6) would flag too many ordinary developing moves as
+"tempting."
+
+Accepted cost: the pool is larger, so the don't-list's engine pass takes a little longer.
+
+Verification: in the image, against the real engine, a position where Qd4 loses the queen
+to ...cxd4 now flags Qd4 as a Blunder; before this change it could not appear at all.
+
 ## Candidate-move explanations: deterministic templates over board facts, LLM-ready seam
 Status: DECIDED
 

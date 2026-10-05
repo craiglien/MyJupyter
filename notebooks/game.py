@@ -1,4 +1,5 @@
 import logging
+import re
 
 import chess
 import matplotlib.pyplot as plt
@@ -6,7 +7,7 @@ from IPython.display import HTML, display
 
 import position
 
-__ver__ = "0.6.0"
+__ver__ = "0.7.0"
 print(f"game ver {__ver__}")
 
 log = logging.getLogger("chess.game")
@@ -158,6 +159,23 @@ def eval_curve_figure(records):
 def critical_moments(records, top_n=3):
     """The top_n plies with the largest centipawn loss."""
     return sorted(records, key=lambda r: r["loss"], reverse=True)[:top_n]
+
+
+def ply_for_move(records, text):
+    """Index into `records` for a typed move reference, or None if the text
+    isn't a move reference or the game has no such move. Accepts "23w",
+    "23b", "23." (White), "23..." (Black), "23 black", and bare "23"
+    (White). Pure — no display, no engine call."""
+    m = re.fullmatch(r"\s*(\d+)\s*(\.{1,3}|[wb][a-z]*)?\s*", text, re.IGNORECASE)
+    if not m:
+        return None
+    number = int(m.group(1))
+    marker = (m.group(2) or "").lower()
+    mover = "Black" if marker == "..." or marker.startswith("b") else "White"
+    for i, r in enumerate(records):
+        if r["move_number"] == number and r["mover"] == mover:
+            return i
+    return None
 
 
 def critical_moments_html(records, top_n=3):

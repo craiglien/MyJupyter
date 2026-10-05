@@ -12,7 +12,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.11.0"
+__ver__ = "0.12.0"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -549,16 +549,19 @@ def score_move(root_board, move, best_score=None, time_limit=2.0):
 
 
 def _tempting_but_unranked_moves(root_board, top_moves):
-    """Legal moves a human eye is drawn to — captures and checks — that
-    aren't already among `top_moves` (the engine's own top picks). Real
-    traps live here: multipv's own top-N search only ever returns strong
-    moves, so it can't surface them. Candidate pool for the "don't" list;
-    scored separately via a root_moves-restricted _analyze() call. (Moves
-    toward the center are a plausible third category but don't have a
-    concrete rule yet — see TASKS.md.)"""
+    """Legal moves a human eye is drawn to — captures, checks, and moves
+    landing on a central square (CENTER_SQUARES) — that aren't already among
+    `top_moves` (the engine's own top picks). Real traps live here:
+    multipv's own top-N search only ever returns strong moves, so it can't
+    surface them. Candidate pool for the "don't" list; scored separately via
+    a root_moves-restricted _analyze() call."""
     return [
         mv for mv in root_board.legal_moves
-        if mv not in top_moves and (root_board.is_capture(mv) or root_board.gives_check(mv))
+        if mv not in top_moves and (
+            root_board.is_capture(mv)
+            or root_board.gives_check(mv)
+            or mv.to_square in CENTER_SQUARES
+        )
     ]
 
 

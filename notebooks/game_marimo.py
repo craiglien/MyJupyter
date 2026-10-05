@@ -124,6 +124,18 @@ def _(game, mo, pgn_text):
 
 
 @app.cell
+def _(game, mo, records):
+    # Whole-game view, above the stepper: eval over time plus the biggest
+    # swings, so you can see where the game turned before stepping through it.
+    mo.vstack([
+        mo.md("### Evaluation over the game"),
+        mo.as_html(game.eval_curve_figure(records)),
+        mo.Html(game.critical_moments_html(records)),
+    ])
+    return
+
+
+@app.cell
 def _(mo):
     # Which ply to look at. mo.state() + buttons, so Next/Prev step through
     # the game reactively — see the marimo tutorial's counter example for

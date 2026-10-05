@@ -71,3 +71,10 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
    see IDEAS.md's Idea 3 (deferred).
 4. Decide whether `stockfish/src` should track a specific pinned Stockfish release/commit
    (see `IDEAS.md`) instead of an untracked snapshot.
+5. Game database as a git submodule (idea only, 2026-10-05): keep the game collections in
+   their own git repository, attached to this project as a submodule. No such repository
+   exists yet, and this repo has no `.gitmodules` or submodule entry. Open questions: where
+   it would mount (likely `data/collections/`, which `game_collections.py` already reads,
+   replacing the tracked `fischer.pgn`); how a fresh clone would fetch it (`git submodule
+   update --init`, and whether `run.sh` or the setup notes need to say so); and how it
+   fits the `data/collections/` git-tracking convention in `CLAUDE.md`.

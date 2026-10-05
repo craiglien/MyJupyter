@@ -12,7 +12,7 @@ import chess.svg
 import chess.pgn
 from IPython.display import SVG, HTML, display
 
-__ver__ = "0.12.0"
+__ver__ = "0.12.1"
 print(f"position ver {__ver__}")
 
 # Path to your Stockfish executable
@@ -244,6 +244,7 @@ def classify_move(board, move):
             if sq in temp_board.attacks(move.to_square)
         ],
         "central": move.to_square in CENTER_SQUARES,
+        "to_square": move.to_square,
         "develops": piece is not None and piece.piece_type in (chess.KNIGHT, chess.BISHOP)
                     and chess.square_rank(move.from_square) == back_rank,
         "mover_color": mover,
@@ -303,7 +304,7 @@ def describe_move_reason(class_info):
         name = chess.piece_name(class_info["moved_piece"].piece_type)
         reasons.append(f"Develops the {name} off its back rank.")
     if class_info["central"]:
-        reasons.append("Puts a piece on a central square.")
+        reasons.append(f"Moves to the central square {chess.square_name(class_info['to_square'])}.")
 
     if not reasons:
         reasons.append("A quiet move — improves piece placement without immediate tactics.")

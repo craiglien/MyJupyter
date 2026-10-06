@@ -67,81 +67,41 @@ fi
 
 chown ${U}:${G} /app
 
-LANDING_PORT_VAL=${LANDING_PORT:-12345}
-MARIMO_PORT_START_VAL=${MARIMO_PORT_START:-12346}
-MARIMO_PORT_END_VAL=${MARIMO_PORT_END:-12350}
-
-# Jupyter is retired (see TASKS.md's Backlog) — every *_marimo.py file under
-# /app gets its own marimo process instead. An arbitrary number of
-# long-running servers now share the container (not a fixed two), so PIDs
-# go in an array; trap/wait below generalize accordingly.
 PIDS=()
+HOST_PORT_VAL=${HOST_PORT:-12345}
 
+# One server for everything, on the one published port: serve.py mounts every
+# *_marimo.py notebook under /<name> and the landing page at /. Served by
+# uvicorn with --reload, so a .py edit restarts the server (notebook kernels
+# reset, which is the trade-off DECISIONS.md records) — no per-notebook ports.
 shopt -s nullglob
 NOTEBOOKS=(/app/*_marimo.py)
 shopt -u nullglob
 
-if [ "${#NOTEBOOKS[@]}" -eq 1 ]; then
-  # Only one notebook exists — put it directly on the one stable,
-  # externally-published port instead of standing up a landing page with
-  # nothing else to link to. The moment a second *_marimo.py file shows up
-  # (Collections/Opening-prep/Tutorial, per TASKS.md), this falls through
-  # to the landing-page branch below with no further changes needed here.
-  # marimo run, not marimo edit — see DECISIONS.md's Phase 3 entry. Notebook
-  # authoring happens by editing the .py file directly (Claude Code, or by
-  # hand), never through marimo's own in-browser code editor; --watch picks
-  # up any such file edit and reloads automatically, no restart needed.
-  # --include-code keeps the source visible in the browser, matching the
-  # previous edit-mode experience (marimo run hides it by default).
-  gosu ${U} marimo run "${NOTEBOOKS[0]}" --headless --no-token --watch --include-code --host 0.0.0.0 --port "$LANDING_PORT_VAL" &
-  PIDS+=($!)
+if [ "${#NOTEBOOKS[@]}" -eq 0 ]; then
+  echo "entrypoint: no *_marimo.py notebooks found under /app" >&2
+  exit 1
+fi
 
-elif [ "${#NOTEBOOKS[@]}" -gt 1 ]; then
-  # Multiple notebooks: each gets its own port from the range, sequentially,
-  # and a landing page on LANDING_PORT links to all of them. Regenerated
-  # fresh on every container start rather than hand-maintained, and written
-  # to /srv/landing — deliberately NOT under /app (bind-mounted to the
-  # host) — so this generated file never shows up as an untracked/dirty
-  # file in `git status` on the host, which is the exact problem TASKS.md's
-  # "Stop git status..." item is about.
-  LANDING_DIR=/srv/landing
-  mkdir -p "$LANDING_DIR"
+# Landing page, regenerated on every container start and written to /srv/landing
+# rather than /app — /app is bind-mounted to the host, and a generated file there
+# would show up as untracked in `git status`. Same provenance as the terminal
+# banner above, shown on the page so the commit is visible without a terminal.
+LANDING_DIR=/srv/landing
+mkdir -p "$LANDING_DIR"
 
-  LINKS_HTML=""
-  port=$MARIMO_PORT_START_VAL
-
-  for nb in "${NOTEBOOKS[@]}"; do
-    name=$(basename "$nb" .py)
-    if [ "$port" -gt "$MARIMO_PORT_END_VAL" ]; then
-      echo "entrypoint: no free port left in ${MARIMO_PORT_START_VAL}-${MARIMO_PORT_END_VAL} for ${name}, skipping" >&2
-      continue
-    fi
-
-    # marimo run, not marimo edit — see the single-notebook branch above and
-    # DECISIONS.md's Phase 3 entry for why.
-    gosu ${U} marimo run "$nb" --headless --no-token --watch --include-code --host 0.0.0.0 --port "$port" &
-    PIDS+=($!)
-
-    LINKS_HTML="${LINKS_HTML}
-    <li class=\"nb\">
-      <a href=\"#\" class=\"nb-link\" data-port=\"${port}\">${name}</a>
-      <span class=\"status\" id=\"status-${port}\">checking…</span>
-    </li>"
-
-    port=$((port + 1))
-  done
-
-  # Status per notebook is checked client-side (a fetch() probe against
-  # each port, run in the browser on page load) rather than baked in here
-  # at container-start — that's the difference between "genuinely live"
-  # and "what was running when the container booted."
-  # Same provenance as the terminal banner above, shown on the page too so
-  # the operator can see which commit they're looking at without a terminal.
-  html_escape() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' <<< "$1"; }
-  PROV_HTML="<p class=\"prov\">Source commit <code>${RUN_COMMIT:-unknown}</code> — $(html_escape "${RUN_COMMIT_SUBJECT:-unknown}") (${RUN_COMMIT_RELTIME:-unknown})<br>
+html_escape() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' <<< "$1"; }
+PROV_HTML="<p class=\"prov\">Source commit <code>${RUN_COMMIT:-unknown}</code> — $(html_escape "${RUN_COMMIT_SUBJECT:-unknown}") (${RUN_COMMIT_RELTIME:-unknown})<br>
 Image built from <code>${BUILD_COMMIT:-unknown}</code> — $(html_escape "${BUILD_COMMIT_SUBJECT:-unknown}") (${BUILD_AGE})</p>"
 
-  cat > "${LANDING_DIR}/index.html" <<HTML
+LINKS_HTML=""
+for nb in "${NOTEBOOKS[@]}"; do
+  slug=$(basename "$nb" _marimo.py)
+  LINKS_HTML="${LINKS_HTML}
+    <li class=\"nb\"><a class=\"nb-link\" href=\"${slug}/\">${slug}</a></li>"
+done
+
+cat > "${LANDING_DIR}/index.html" <<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -150,11 +110,8 @@ Image built from <code>${BUILD_COMMIT:-unknown}</code> — $(html_escape "${BUIL
 <style>
   body { font-family: sans-serif; max-width: 40em; margin: 3em auto; }
   ul { list-style: none; padding: 0; }
-  li.nb { display: flex; justify-content: space-between; padding: 0.5em 0; border-bottom: 1px solid #ddd; }
+  li.nb { padding: 0.5em 0; border-bottom: 1px solid #ddd; }
   a.nb-link { font-size: 1.1em; text-decoration: none; }
-  .status { font-size: 0.9em; color: #888; }
-  .status.up { color: #2a7; }
-  .status.down { color: #c33; }
   .prov { font-size: 0.85em; color: #888; margin: 0 0 1.5em; }
 </style>
 </head>
@@ -164,34 +121,14 @@ ${PROV_HTML}
 <ul>
 ${LINKS_HTML}
 </ul>
-<script>
-  document.querySelectorAll(".nb-link").forEach(function (a) {
-    var port = a.dataset.port;
-    a.href = "http://" + window.location.hostname + ":" + port + "/";
-  });
-
-  function checkStatus(el) {
-    var port = el.id.replace("status-", "");
-    var url = "http://" + window.location.hostname + ":" + port + "/";
-    fetch(url, { mode: "no-cors", cache: "no-store" })
-      .then(function () { el.textContent = "● up"; el.className = "status up"; })
-      .catch(function () { el.textContent = "● down"; el.className = "status down"; });
-  }
-
-  document.querySelectorAll(".status").forEach(checkStatus);
-</script>
 </body>
 </html>
 HTML
 
-  chown -R ${U}:${G} "$LANDING_DIR"
+chown -R ${U}:${G} "$LANDING_DIR"
 
-  gosu ${U} python3 -m http.server "$LANDING_PORT_VAL" --directory "$LANDING_DIR" --bind 0.0.0.0 &
-  PIDS+=($!)
-
-else
-  echo "entrypoint: no *_marimo.py notebooks found under /app" >&2
-fi
+gosu ${U} uvicorn serve:app --app-dir /app --host 0.0.0.0 --port "$HOST_PORT_VAL" --reload --reload-dir /app &
+PIDS+=($!)
 
 trap 'kill -TERM "${PIDS[@]}" 2>/dev/null' TERM INT
 wait -n "${PIDS[@]}"

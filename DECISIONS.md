@@ -1,5 +1,28 @@
 # DECISIONS.md
 
+## One server, one port: marimo's ASGI app instead of a port per notebook
+Status: DECIDED
+
+Implemented 2026-10-06. The container used to run one marimo process per notebook on its
+own port, with a landing page linking to them. Browser links then went to different
+ports, and the range had to be published in run.sh. Now `notebooks/serve.py` builds one
+ASGI app with `marimo.create_asgi_app()`: each `*_marimo.py` is mounted at `/<name>`, and
+the landing page is served at `/`. `entrypoint.sh` runs that app with uvicorn on
+HOST_PORT.
+
+Alternative rejected: a reverse proxy in front of the per-notebook processes (see the
+Traefik entry in `IDEAS.md`). marimo supports mounting natively, so the proxy's extra
+component wasn't needed.
+
+Trade-off accepted: `--watch` is gone. uvicorn's `--reload` restarts the whole server when
+a `.py` file changes, so every notebook's kernel resets on each edit. Before this change, an
+edit reloaded only the notebook that changed, without losing the others' state.
+
+Verified in an isolated container: `/`, `/game/`, and `/collections/` respond on the one
+port; both notebooks render their plotly charts and the click still moves the stepper; the
+landing-page link opens a notebook; touching a notebook file triggers a reload with the page
+still serving.
+
 ## Interactive eval chart: Plotly with click-to-jump (game 0.8.0)
 Status: DECIDED
 

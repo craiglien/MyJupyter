@@ -113,6 +113,9 @@ cat > "${LANDING_DIR}/index.html" <<HTML
   li.nb { padding: 0.5em 0; border-bottom: 1px solid #ddd; }
   a.nb-link { font-size: 1.1em; text-decoration: none; }
   .prov { font-size: 0.85em; color: #888; margin: 0 0 1.5em; }
+  section.notes { margin-top: 2.5em; border-top: 1px solid #ddd; padding-top: 0.5em; }
+  section.notes p { margin: 0.5em 0; line-height: 1.4; }
+  .stamp { font-size: 0.85em; color: #888; }
 </style>
 </head>
 <body>
@@ -121,6 +124,7 @@ ${PROV_HTML}
 <ul>
 ${LINKS_HTML}
 </ul>
+<!--NOTES-->
 </body>
 </html>
 HTML

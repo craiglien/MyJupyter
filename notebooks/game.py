@@ -7,7 +7,7 @@ from IPython.display import HTML, display
 
 import position
 
-__ver__ = "0.7.0"
+__ver__ = "0.8.0"
 print(f"game ver {__ver__}")
 
 log = logging.getLogger("chess.game")
@@ -153,6 +153,48 @@ def eval_curve_figure(records):
     ax.set_xlabel("Ply")
     ax.set_ylabel("Eval (pawns, White POV)")
     ax.set_title("Evaluation over the game")
+    return fig
+
+
+def eval_curve_plotly(records):
+    """Interactive eval chart for marimo's mo.ui.plotly: one White-POV line,
+    the same three biggest swings marked as critical_moments() picks them,
+    and a hover showing move, eval, and quality. x is 1-based, matching the
+    stepper's "Move N", so a clicked point maps to a ply index as x - 1.
+    Labels say which side is ahead, so no reading of the sign is needed."""
+    import plotly.graph_objects as go
+
+    xs = list(range(1, len(records) + 1))
+    ys = [max(-10, min(10, r["white_eval"])) for r in records]
+    custom = [
+        [f"{r['move_number']}{'.' if r['mover'] == 'White' else '...'} {r['san']}",
+         r["white_eval_display"], r["quality"]]
+        for r in records
+    ]
+    critical = critical_moments(records, top_n=3)
+    crit_idx = [i for i, r in enumerate(records) if any(r is c for c in critical)]
+    crit_x = [i + 1 for i in crit_idx]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=xs, y=ys, mode="lines+markers", marker=dict(size=5), line=dict(color="#1f77b4"),
+        customdata=custom,
+        hovertemplate="%{customdata[0]} · %{customdata[1]} · %{customdata[2]}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=crit_x, y=[ys[i] for i in crit_idx], mode="markers",
+        marker=dict(size=11, color="#d62728"), hoverinfo="skip",
+    ))
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+    fig.add_annotation(text="▲ White ahead", xref="paper", yref="paper", x=0.01, y=0.98,
+                       xanchor="left", yanchor="top", showarrow=False)
+    fig.add_annotation(text="▼ Black ahead", xref="paper", yref="paper", x=0.01, y=0.02,
+                       xanchor="left", yanchor="bottom", showarrow=False)
+    fig.update_layout(
+        height=320, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
+        title="Evaluation over the game (click a point to jump there)",
+        xaxis_title="Ply (1 = White's first move)", yaxis_title="Advantage (pawns)",
+    )
     return fig
 
 

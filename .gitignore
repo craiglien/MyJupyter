@@ -7,3 +7,5 @@ data/debug.log*
 data/current_game.pgn
 notebooks/*.debug.ipynb
 data/games/
+data/notes.md
+data/notes.md.tmp

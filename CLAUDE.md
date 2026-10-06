@@ -29,8 +29,9 @@ and a locally-built Stockfish engine.
 - Python 3.10 via the `deadsnakes` PPA (pinned as the `python`/`python3` alternative).
 - Pip packages: `ipython` (Jupyter's server itself is retired — this alone covers
   `position.py`/`game.py`'s `display()`/`HTML`/`SVG` calls), `matplotlib` (the only other
-  data/viz package actually imported anywhere — `game.py`'s `show_sweep()`), `httpx<0.24`,
-  `chess`, `marimo`.
+  data/viz package actually imported anywhere — `game.py`'s `show_sweep()`), `plotly`
+  (the interactive eval chart's clickable plot, `game.py`'s `eval_curve_plotly()`),
+  `httpx<0.24`, `chess`, `marimo`.
 - Stockfish 17: compiled from the vendored source at `stockfish/src` in a multi-stage
   Docker build (`stockfish-build` stage), with `ARCH` picked from `uname -m` inside that
   stage (`x86-64` or `armv8`) so the binary always matches the container's actual

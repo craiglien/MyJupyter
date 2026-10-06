@@ -1,5 +1,23 @@
 # DECISIONS.md
 
+## Landing-page notes: a hand-edited file with a self-maintained stamp
+Status: DECIDED
+
+Implemented 2026-10-06. The notes section at the bottom of the landing page is `data/notes.md`,
+edited by hand. The page reads the file on each request, so an edit shows on reload with no
+restart.
+
+"Last updated" is a header line in the file, not the OS modification time. Hand edits don't
+update a stamp by themselves, so `notebooks/notes.py` compares the note text to the hash in the
+header on each page load. If they differ, it rewrites the header with the file's own mtime
+(the real edit time). The stamp survives copying or moving the file.
+
+Limit: the stamp only updates when the landing page is loaded. An edit with no page load after
+it is stamped with the file's mtime at the next load, which is still the true edit time.
+
+Chosen over a textarea with a Save button (which would make the web page able to write to disk)
+and over OS mtime alone (which copies and checkouts change).
+
 ## Saved games: one gitignored file, listed as the my_games collection
 Status: DECIDED
 

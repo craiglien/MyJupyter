@@ -73,8 +73,9 @@ marked. x is 1-based to match "Move N", and a click maps to a ply index as x - 1
 Cost: plotly is a new pip dependency, so the image needs a rebuild (build.sh) when it
 changes.
 
-Known limit: a click on the point already selected may not fire a change event, so
-clicking the same point twice may not jump again.
+Re-clicking: clicking the same point again after stepping away does jump back (verified
+2026-10-06: Move 17, then Next to Move 18, then the same marker returns to Move 17). The only
+no-op is clicking the move that's already current, which needs no jump.
 
 Verified in a browser against an isolated container: a click on a swing marker moves the
 stepper on both notebooks (Move 17 on the game notebook; Move 21 of 82 on the collections

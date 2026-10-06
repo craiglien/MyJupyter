@@ -41,6 +41,9 @@ and a locally-built Stockfish engine.
   - `data/collections/*.pgn` are user-curated game collections (one file per collection,
     multiple games per file via standard multi-game PGN) — tracked in git, not gitignored;
     add/edit files here directly, no rebuild needed. See `notebooks/game_collections.py`.
+  - `data/games/my_games.pgn` holds the games saved from the game notebook's "Save game"
+    button (multi-game PGN, appended to on each save). Gitignored — personal games stay
+    out of git. Listed in the Collections picker as `my_games`.
 - `./notebooks` (mounted to `/app`) — the notebook files and their Python modules, layered:
   - `notebooks/position.py` — single-position/FEN analysis primitives: build a position
     from a FEN or PGN, get ranked candidate moves and explanations from Stockfish

@@ -44,6 +44,8 @@ and a locally-built Stockfish engine.
   - `data/games/my_games.pgn` holds the games saved from the game notebook's "Save game"
     button (multi-game PGN, appended to on each save). Gitignored — personal games stay
     out of git. Listed in the Collections picker as `my_games`.
+  - `data/notes.md` is the landing page's notes section, edited by hand. `notebooks/notes.py`
+    keeps a `last updated` header line at the top of the file current. Gitignored.
 - `./notebooks` (mounted to `/app`) — the notebook files and their Python modules, layered:
   - `notebooks/position.py` — single-position/FEN analysis primitives: build a position
     from a FEN or PGN, get ranked candidate moves and explanations from Stockfish

@@ -1,5 +1,23 @@
 # DECISIONS.md
 
+## Saved games: one gitignored file, listed as the my_games collection
+Status: DECIDED
+
+Implemented 2026-10-06. Games you want to keep go to `data/games/my_games.pgn`, a multi-game
+PGN, appended to on each save from the game notebook's "Save game" button. The save takes a
+name, stored as the game's Event header. `data/games/` is gitignored, so personal games never
+enter git history. Collections picks up the file as `my_games`, with no other changes to the
+notebook.
+
+Chosen over saving into `data/collections/` (tracked in git, so personal games would be
+committed) and over a separate notebook (duplicates the picker and the Next/Prev buttons).
+
+Known gaps: a save doesn't refresh the Collections picker by itself, so use "Refresh list".
+Games are saved as typed, so there's no way to delete one yet.
+
+Verified in an isolated container: a second save appends rather than replacing; a blank name
+is rejected; in a browser, the saved game appears under my_games after a refresh.
+
 ## One server, one port: marimo's ASGI app instead of a port per notebook
 Status: DECIDED
 

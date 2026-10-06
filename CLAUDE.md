@@ -12,17 +12,14 @@ and a locally-built Stockfish engine.
   then separately builds the `stockfish-build` stage and `docker cp`s the compiled Stockfish
   binary out to `./stockfish-bin` on the host (gitignored artifact).
 - `run.sh` (invoke as `bash run.sh` — no exec bit, by design) — runs the image, mounting
-  `./notebooks` → `/app` and `./data` → `/data`, publishing the one stable port `$HOST_PORT`
-  (default `12345`, see `config.sh`) plus a range `$MARIMO_PORT_START`-`$MARIMO_PORT_END`
-  (default `12346`-`12350`) for individual notebook processes.
+  `./notebooks` → `/app` and `./data` → `/data`, publishing the one port `$HOST_PORT`
+  (default `12345`, see `config.sh`).
 - `entrypoint.sh` — inside the container, maps the host UID/GID onto a `crun` user via
-  `gosu`, then launches one `marimo edit` process per `*_marimo.py` file found under `/app`.
-  With exactly one notebook, it runs directly on `$HOST_PORT`. With two or more (the
-  current state, since `collections_marimo.py` was added — see `DECISIONS.md`), each gets
-  its own port from the range above, and a generated landing page at
-  `/srv/landing/index.html` linking to all of them is served on `$HOST_PORT` via
-  `python3 -m http.server`. Jupyter is retired (not launched) — see `DECISIONS.md`/
-  `TASKS.md`.
+  `gosu`, writes the landing page to `/srv/landing/index.html`, then starts one uvicorn
+  server (`serve:app`, from `notebooks/serve.py`) on `$HOST_PORT` with `--reload`. That
+  server mounts every `*_marimo.py` notebook under `/<name>` (`game_marimo.py` → `/game`)
+  and serves the landing page at `/`. Jupyter is retired (not launched) — see
+  `DECISIONS.md`/`TASKS.md`.
 
 ## Stack
 - Base image: `ubuntu:24.04`.

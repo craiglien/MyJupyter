@@ -10,12 +10,17 @@ from pathlib import Path
 
 import marimo
 from starlette.applications import Starlette
-from starlette.responses import FileResponse
+from starlette.responses import HTMLResponse
 from starlette.routing import Mount, Route
+
+import notes
 
 NOTEBOOK_DIR = "/app"
 # Written by entrypoint.sh at container start (see there for why /srv, not /app).
 LANDING_PAGE = "/srv/landing/index.html"
+# Your notes, shown on the landing page. Lives in ./data (gitignored), so it's
+# read per request: edits appear on the next page load, no restart needed.
+NOTES_PATH = "/data/notes.md"
 
 
 def build_app():
@@ -25,7 +30,9 @@ def build_app():
         builder = builder.with_app(path=f"/{slug}", root=path)
 
     async def landing(request):
-        return FileResponse(LANDING_PAGE)
+        with open(LANDING_PAGE, encoding="utf-8") as f:
+            page = f.read()
+        return HTMLResponse(page.replace("<!--NOTES-->", notes.render_notes_html(NOTES_PATH)))
 
     return Starlette(routes=[
         Route("/", landing),

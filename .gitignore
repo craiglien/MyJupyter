@@ -6,3 +6,4 @@ data/engine_cache.json
 data/debug.log*
 data/current_game.pgn
 notebooks/*.debug.ipynb
+data/games/

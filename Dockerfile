@@ -70,6 +70,10 @@ RUN pip install ipython
 # pandas/numpy/seaborn were never used by any module.
 RUN pip install matplotlib
 
+# Interactive eval chart (game.py's eval_curve_plotly()): marimo's mo.ui.plotly
+# needs plotly, and clicking a point there jumps the stepper to that ply.
+RUN pip install plotly
+
 RUN pip install "httpx<0.24"
 
 RUN pip install --prefer-binary chess

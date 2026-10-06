@@ -12,10 +12,7 @@ RUN_COMMIT_RELTIME=$(git log -1 --format=%cr)
 
 docker run -it --rm \
     -p "$HOST_PORT":"$HOST_PORT" \
-    -p "$MARIMO_PORT_START"-"$MARIMO_PORT_END":"$MARIMO_PORT_START"-"$MARIMO_PORT_END" \
-    -e LANDING_PORT=$HOST_PORT \
-    -e MARIMO_PORT_START=$MARIMO_PORT_START \
-    -e MARIMO_PORT_END=$MARIMO_PORT_END \
+    -e HOST_PORT=$HOST_PORT \
     -e LOCAL_UID="$USER_UID" \
     -e LOCAL_GID="$USER_GID" \
     -e RUN_COMMIT="$RUN_COMMIT" \

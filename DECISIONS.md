@@ -1,5 +1,26 @@
 # DECISIONS.md
 
+## Interactive eval chart: Plotly with click-to-jump (game 0.8.0)
+Status: DECIDED
+
+Implemented 2026-10-05. The whole-game eval chart is now a Plotly figure wrapped in
+marimo's mo.ui.plotly, so a click on a ply moves the stepper there. The matplotlib chart
+stays for the Jupyter-era show_sweep() path only.
+
+Choices: one White-POV line, with the y-axis labeled "White ahead" / "Black ahead" so the
+sign doesn't need reading. The same three biggest swings as the "Biggest swings" list are
+marked. x is 1-based to match "Move N", and a click maps to a ply index as x - 1.
+
+Cost: plotly is a new pip dependency, so the image needs a rebuild (build.sh) when it
+changes.
+
+Known limit: a click on the point already selected may not fire a change event, so
+clicking the same point twice may not jump again.
+
+Verified in a browser against an isolated container: a click on a swing marker moves the
+stepper on both notebooks (Move 17 on the game notebook; Move 21 of 82 on the collections
+notebook).
+
 ## Don't-list pool includes quiet moves to the four central squares (position 0.12.0)
 Status: DECIDED
 

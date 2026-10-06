@@ -11,6 +11,7 @@ def _():
     import marimo as mo
 
     import game
+    import game_collections
     import position
 
     # Same RUN_COMMIT* env vars entrypoint.sh's startup banner already
@@ -72,7 +73,7 @@ def _(mo):
 
 
 @app.cell
-def _(CURRENT_GAME_PATH, get_load_status, get_pgn_text, mo, set_load_status, set_pgn_text):
+def _(CURRENT_GAME_PATH, game_collections, get_load_status, get_pgn_text, mo, set_load_status, set_pgn_text):
     pgn_editor = mo.ui.text_area(
         value=get_pgn_text(), label="Current game (PGN)", full_width=True
     )
@@ -90,8 +91,19 @@ def _(CURRENT_GAME_PATH, get_load_status, get_pgn_text, mo, set_load_status, set
         set_pgn_text(lambda v: text)
         set_load_status(lambda v: "✓ Reloaded from disk.")
 
+    def _save(_):
+        try:
+            label = game_collections.save_game(save_name.value, pgn_editor.value)
+        except ValueError as e:
+            set_load_status(lambda v: f"✗ {e}")
+        else:
+            set_load_status(lambda v: f"✓ Saved to My games: {label}")
+
     load_button = mo.ui.button(label="Load game", on_click=_load)
     reload_button = mo.ui.button(label="↻ Reload from disk", on_click=_reload_from_disk)
+    # Saved games go to data/games/my_games.pgn (gitignored) — see game_collections.py.
+    save_name = mo.ui.text(label="Save as", placeholder="e.g. Coach game, Oct 6")
+    save_button = mo.ui.button(label="Save game", on_click=_save)
 
     status = get_load_status()
 
@@ -99,6 +111,7 @@ def _(CURRENT_GAME_PATH, get_load_status, get_pgn_text, mo, set_load_status, set
         mo.md("### Current game"),
         pgn_editor,
         mo.hstack([load_button, reload_button], justify="start"),
+        mo.hstack([save_name, save_button], justify="start", align="end"),
         mo.md(f"*{status}*") if status else mo.md(""),
     ])
     return

@@ -1,27 +1,38 @@
+import io
 import os
 
 import chess.pgn
 
-__ver__ = "0.1.0"
+__ver__ = "0.2.0"
 print(f"game_collections ver {__ver__}")
 
 COLLECTIONS_DIR = "/data/collections"
+# Games you save from the game notebook (save_game()). Gitignored — personal
+# games, never committed — but listed alongside COLLECTIONS_DIR's files.
+GAMES_DIR = "/data/games"
+SAVED_COLLECTION = "my_games"
 
 
 def list_collections():
-    """Names (filename stem) of every *.pgn file under COLLECTIONS_DIR, sorted.
-    Bind-mounted (./data/collections on the host) — add or edit a file there
-    and it shows up next time this is called, no rebuild or restart needed."""
-    if not os.path.isdir(COLLECTIONS_DIR):
-        return []
-    return sorted(
-        os.path.splitext(f)[0]
-        for f in os.listdir(COLLECTIONS_DIR)
-        if f.endswith(".pgn")
-    )
+    """Names (filename stem) of every *.pgn file under COLLECTIONS_DIR and
+    GAMES_DIR, sorted. Bind-mounted (./data on the host) — add or edit a file
+    there and it shows up next time this is called, no rebuild or restart needed."""
+    names = set()
+    for directory in (COLLECTIONS_DIR, GAMES_DIR):
+        if os.path.isdir(directory):
+            names.update(
+                os.path.splitext(f)[0]
+                for f in os.listdir(directory)
+                if f.endswith(".pgn")
+            )
+    return sorted(names)
 
 
 def _collection_path(name):
+    for directory in (COLLECTIONS_DIR, GAMES_DIR):
+        path = os.path.join(directory, f"{name}.pgn")
+        if os.path.exists(path):
+            return path
     return os.path.join(COLLECTIONS_DIR, f"{name}.pgn")
 
 
@@ -56,3 +67,23 @@ def list_games(collection_name):
                 "pgn_text": game.accept(exporter),
             })
     return games
+
+
+def save_game(name, pgn_text):
+    """Append the game in `pgn_text` to the saved-games collection, labeled
+    `name` (stored as the game's Event header, so it shows in the picker).
+    Returns the game's label. Raises ValueError if there's no name or no game
+    in the text. Re-exported through chess.pgn, so the saved file always has
+    clean headers and mainline moves, whatever was pasted in."""
+    name = name.strip()
+    if not name:
+        raise ValueError("Give the game a name before saving.")
+    game = chess.pgn.read_game(io.StringIO(pgn_text))
+    if game is None or not list(game.mainline_moves()):
+        raise ValueError("No game with moves found in the PGN text.")
+    game.headers["Event"] = name
+    os.makedirs(GAMES_DIR, exist_ok=True)
+    exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=False)
+    with open(os.path.join(GAMES_DIR, f"{SAVED_COLLECTION}.pgn"), "a", encoding="utf-8") as f:
+        f.write(game.accept(exporter) + "\n\n")
+    return _game_label(game.headers)

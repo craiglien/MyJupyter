@@ -124,12 +124,25 @@ def _(game, mo, pgn_text):
 
 
 @app.cell
-def _(game, mo, records):
+def _(game, mo, records, set_ply):
+    # Interactive whole-game view: clicking a point on the eval chart moves
+    # the stepper to that ply. The click handler is a plotly on_change
+    # callback, so it's the only thing that writes to the stepper here.
+    def _jump(points):
+        if points:
+            idx = int(points[0]["x"]) - 1
+            set_ply(lambda v: idx)
+    eval_chart = mo.ui.plotly(game.eval_curve_plotly(records), on_change=_jump)
+    return (eval_chart,)
+
+
+@app.cell
+def _(eval_chart, game, mo, records):
     # Whole-game view, above the stepper: eval over time plus the biggest
     # swings, so you can see where the game turned before stepping through it.
     mo.vstack([
         mo.md("### Evaluation over the game"),
-        mo.as_html(game.eval_curve_figure(records)),
+        eval_chart,
         mo.Html(game.critical_moments_html(records)),
     ])
     return

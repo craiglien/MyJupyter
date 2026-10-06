@@ -156,7 +156,12 @@ Resolved by switching to `marimo run` (2026-09-24, see `DECISIONS.md`'s Phase 3 
 which auto-executes on load since it's meant to serve a finished app rather than an editing
 session — confirmed during Phase 3's own verification.
 
-## Traefik (or similar) reverse proxy, to get back down to one published socket
+## Traefik (or similar) reverse proxy, to get back down to one published socket — RESOLVED without a proxy
+Resolved 2026-10-06 (see `DECISIONS.md`): a single uvicorn server running `notebooks/serve.py`
+mounts every notebook under its own path (`/game`, `/collections`) and serves the landing page at
+`/`, so only one port is published. marimo's own ASGI support made the proxy unnecessary. The rest
+of the original reasoning below is kept for reference.
+
 Not urgent — just an idea for cleaning up sockets, not a problem actually being hit today.
 
 Right now `run.sh` publishes `$HOST_PORT` plus the entire `$MARIMO_PORT_START`-

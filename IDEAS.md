@@ -109,30 +109,15 @@ imported under that name; see `DECISIONS.md`.)
   framing here was wrong: the top-5 `multipv` candidate list can't supply these moves,
   since multipv only ever returns strong moves — a real trap won't appear in it. Settled
   on scoring a targeted set of tempting-looking moves instead, via `root_moves=`.)
-- Preview a candidate move "in play" — a way to see the board with a given candidate move
-  actually made on it, without committing to it as the selected/analyzed line. Scope: the
-  candidate-move picker in `game_marimo.py` specifically (where `render_candidate_html`
-  already renders a board-with-move view for the selected radio choice) — this would let
-  you spot-check other candidates' resulting positions without changing the selection.
-  Two mechanisms considered, both still on the table (2026-09-09):
-  - Hover (preferred): since `render_candidate_html()` builds each candidate's board+
-    arrow purely from data `rank_candidates()` already computed, all candidates' boards
-    could be pre-rendered up front — no extra Stockfish calls — then shown via plain CSS
-    `:hover` next to the option being pointed at. Likely no server round-trip needed at
-    all, unlike marimo's usual click-driven reactive-state model.
-  - Right-click/context menu — noted as a fallback in case hover doesn't work well on
-    touch/trackpad interactions.
-- Quick-append move box above `pgn_text` (2026-09-22): a small text input placed right
-  above the `pgn_text` cell in `game_marimo.py` — type a SAN move, it appends to the end
-  of the PGN move string and nothing else. Deliberately just one cell, no engine call of
-  its own — unlike "Try your own move" below the board, which scores the move immediately.
-  Downstream cells (`sweep_game`, the board, candidates) still re-run automatically since
-  they already depend on `pgn_text` — that's normal marimo reactivity, not something this
-  widget needs to trigger itself. Still unscoped: whether the appended move needs a
-  legality check first (parsing against the *current last position* in `records`, the same
-  way the try-your-own-move panel does) or just gets appended blind and lets `sweep_game`
-  surface a parse error if it's illegal; and the move-number/color prefix formatting
-  (`"5."` vs `"5..."`) needed to keep the resulting string valid PGN.
+- Preview a candidate move "in play" — RESOLVED 2026-10-04 via `render_candidate_previews_html()`
+  (`position.py` 0.11.0, see `DECISIONS.md`): a row of thumbnails, one per candidate,
+  pre-rendered from data `rank_candidates()` already computed, enlarged on hover with plain
+  CSS — no extra Stockfish calls, no server round-trip. The hover mechanism from the two
+  considered here.
+- Quick-append move box above `pgn_text` — RESOLVED 2026-10-06 via `game.append_move()`
+  (`game.py` 0.9.0, see `DECISIONS.md`): checks the SAN against the final position first
+  (illegal moves are refused, never appended), and the move number/color prefix is written
+  by chess.pgn's own exporter rather than typed by hand.
 
 ## marimo's single-shared-kernel-per-notebook behavior — RESOLVED by Phase 3
 Discovered 2026-09-22 under `marimo edit`: one running kernel per notebook file, every new

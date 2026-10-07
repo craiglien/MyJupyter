@@ -73,10 +73,44 @@ def _(mo, pgn_text, study):
 
 
 @app.cell
+def _(records, study):
+    # Pure python-chess, no new engine calls — see study.material_imbalance().
+    material_rows = study.material_imbalance(records)
+    return (material_rows,)
+
+
+@app.cell
 def _(mo):
     # Same mo.state()-plus-button stepper pattern as game_marimo.py.
     get_ply, set_ply = mo.state(0, allow_self_loops=True)
     return get_ply, set_ply
+
+
+@app.cell
+def _(get_ply, material_rows, mo, records, set_ply, study):
+    # Clicking a point on either panel jumps the stepper there, same pattern
+    # as game_marimo.py's eval chart. The current ply is drawn back in as a
+    # dashed cursor line, so this cell depends on get_ply() too.
+    def _jump(points):
+        if points:
+            idx = int(points[0]["x"]) - 1
+            set_ply(lambda v: idx)
+
+    current_ply = min(get_ply(), len(records) - 1)
+    study_chart = mo.ui.plotly(
+        study.study_figure(records, material_rows, current_ply=current_ply),
+        on_change=_jump,
+    )
+    return (study_chart,)
+
+
+@app.cell
+def _(mo, study_chart):
+    mo.vstack([
+        mo.md("### Evaluation + material"),
+        study_chart,
+    ])
+    return
 
 
 @app.cell

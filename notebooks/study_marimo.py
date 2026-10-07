@@ -156,6 +156,16 @@ def _(get_ply, mo, position, records):
               f"{r['quality']} ({r['white_eval_display']})"),
         mo.Html(board_svg),
     ])
+    return (board,)
+
+
+@app.cell
+def _(board, mo, study):
+    # Pure python-chess, no new engine calls — see study.pawn_structure().
+    mo.vstack([
+        mo.md("### Pawn structure"),
+        mo.Html(study.pawn_structure_html(board.board)),
+    ])
     return
 
 

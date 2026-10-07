@@ -74,11 +74,14 @@ def _(mo, pgn_text, study):
 
 @app.cell
 def _(records, study):
-    # Pure python-chess, no new engine calls — see study.material_imbalance()
-    # and study.captures_timeline().
+    # Pure python-chess, no new engine calls — see study.material_imbalance(),
+    # study.captures_timeline(), and study.discovered_attacks(). discovered
+    # is swept for the whole game here (cheap, no engine); the board-dependent
+    # cell below filters it down to the current ply.
     material_rows = study.material_imbalance(records)
     captures = study.captures_timeline(records)
-    return captures, material_rows
+    discovered = study.discovered_attacks(records)
+    return captures, discovered, material_rows
 
 
 @app.cell
@@ -165,6 +168,26 @@ def _(board, mo, study):
     mo.vstack([
         mo.md("### Pawn structure"),
         mo.Html(study.pawn_structure_html(board.board)),
+    ])
+    return
+
+
+@app.cell
+def _(board, discovered, get_ply, mo, records, study):
+    # Pins, skewers, forks, fianchettos, open/semi-open files, outposts,
+    # king safety, and the Exchange are all static facts about this board.
+    # Discovered attacks are the one exception — they're about the move
+    # that led here, not the board alone — so discovered (swept for the
+    # whole game above) is filtered down to this ply's event, if any.
+    #
+    # Named concept_ply, not ply — the board cell above already binds ply,
+    # and marimo treats the same top-level name assigned in two cells as a
+    # namespace conflict (see DECISIONS.md's note on this for button_ply).
+    concept_ply = min(get_ply(), len(records) - 1)
+    this_ply_discovered = [e for e in discovered if e["x"] == records[concept_ply]["ply"]]
+    mo.vstack([
+        mo.md("### Tactical & positional concepts"),
+        mo.Html(study.concepts_html(board.board, discovered=this_ply_discovered)),
     ])
     return
 

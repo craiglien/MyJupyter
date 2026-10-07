@@ -15,13 +15,17 @@ White's advantage, orange/amber for Black's, both chosen to match
 Okabe-Ito-style colorblind-safe hues. The five piece-type colors in the
 material panel are picked from the same constraint — distinguishable
 without relying on red vs. green. Phase 3 adds the captures timeline strip
-— see captures_timeline() below."""
+— see captures_timeline() below. Phase 4 adds pawn-structure detection —
+see pawn_structure()/PAWN_STRUCTURE_GLOSSARY below. These are the standard
+simplified heuristics most study tools use, not formal engine-verified
+definitions — real pawn structures have edge cases a one-line rule won't
+always get right, same spirit as game.py's _game_phase() heuristic."""
 
 import chess
 
 import game
 
-__ver__ = "0.3.0"
+__ver__ = "0.4.0"
 print(f"study ver {__ver__}")
 
 WHITE_ADV_COLOR = "#1f77b4"  # blue — also game.py's existing eval-line color
@@ -45,6 +49,23 @@ PIECE_GLYPHS = {
     (chess.WHITE, chess.ROOK): "♖", (chess.WHITE, chess.QUEEN): "♕",
     (chess.BLACK, chess.PAWN): "♟", (chess.BLACK, chess.KNIGHT): "♞", (chess.BLACK, chess.BISHOP): "♝",
     (chess.BLACK, chess.ROOK): "♜", (chess.BLACK, chess.QUEEN): "♛",
+}
+
+PAWN_STRUCTURE_GLOSSARY = {
+    "Doubled pawns": "Two or more of your pawns stuck on the same file — they "
+                     "can't defend each other, and the front one is often a "
+                     "fixed target with no pawn able to trade it off.",
+    "Isolated pawns": "A pawn with no friendly pawn on either neighboring file, "
+                      "so no other pawn can ever come to its defense.",
+    "Backward pawns": "A pawn that's fallen behind its neighbors and can't "
+                      "safely advance, because an enemy pawn controls the "
+                      "square right in front of it.",
+    "Passed pawns": "A pawn with no enemy pawn in front of it on its own file "
+                    "or either neighboring file — nothing but pieces can stop "
+                    "it from reaching the end.",
+    "Pawn islands": "A group of pawns on files with no gaps between them. "
+                    "Fewer, bigger islands are usually healthier than several "
+                    "small, scattered ones.",
 }
 
 
@@ -169,3 +190,102 @@ def study_figure(records, material_rows, captures=None, current_ply=None):
     fig.update_yaxes(title_text="Advantage (pawns)", row=1, col=1)
     fig.update_yaxes(title_text="Material (pawns-eq.)", row=2, col=1)
     return fig
+
+
+def pawn_structure(board, color):
+    """Heuristic pawn-structure facts for `color` on `board`: doubled,
+    isolated, backward, and passed pawns (each a list of squares), plus the
+    number of pawn islands. See the module docstring — these are the
+    standard simplified heuristics, not formal definitions.
+
+    - Doubled: 2+ of this color's pawns share a file.
+    - Isolated: no friendly pawn on either neighboring file, at any rank.
+    - Passed: no enemy pawn on this file or either neighboring file that's
+      still ahead of it (so nothing but a piece can ever stop it).
+    - Backward: not passed, no friendly pawn on a neighboring file that's
+      level with or behind it (so it has no potential defender), and the
+      square right in front of it is attacked by an enemy pawn (so
+      advancing loses it).
+    - Pawn islands: the number of contiguous runs of occupied files."""
+    pawns = board.pieces(chess.PAWN, color)
+    enemy_pawns = board.pieces(chess.PAWN, not color)
+    files_with_pawns = {}
+    for sq in pawns:
+        files_with_pawns.setdefault(chess.square_file(sq), []).append(sq)
+
+    doubled = [sq for squares in files_with_pawns.values() if len(squares) > 1 for sq in squares]
+
+    isolated = [
+        sq for f, squares in files_with_pawns.items()
+        if (f - 1) not in files_with_pawns and (f + 1) not in files_with_pawns
+        for sq in squares
+    ]
+
+    passed = []
+    for sq in pawns:
+        f, r = chess.square_file(sq), chess.square_rank(sq)
+        blocked = any(
+            chess.square_file(esq) in (f - 1, f, f + 1)
+            and (chess.square_rank(esq) > r if color == chess.WHITE else chess.square_rank(esq) < r)
+            for esq in enemy_pawns
+        )
+        if not blocked:
+            passed.append(sq)
+
+    backward = []
+    for sq in pawns:
+        if sq in passed:
+            continue
+        f, r = chess.square_file(sq), chess.square_rank(sq)
+        has_potential_defender = any(
+            chess.square_file(other) in (f - 1, f + 1)
+            and (chess.square_rank(other) <= r if color == chess.WHITE else chess.square_rank(other) >= r)
+            for other in pawns if other != sq
+        )
+        if has_potential_defender:
+            continue
+        stop_square = sq + 8 if color == chess.WHITE else sq - 8
+        if not (0 <= stop_square <= 63):
+            continue
+        if any(board.piece_type_at(a) == chess.PAWN for a in board.attackers(not color, stop_square)):
+            backward.append(sq)
+
+    occupied_files = sorted(files_with_pawns.keys())
+    islands = sum(1 for i, f in enumerate(occupied_files) if i == 0 or f != occupied_files[i - 1] + 1)
+
+    return {"doubled": doubled, "isolated": isolated, "backward": backward, "passed": passed, "islands": islands}
+
+
+_STRUCTURE_BADGE_KEYS = (
+    ("doubled", "Doubled pawns"), ("isolated", "Isolated pawns"),
+    ("backward", "Backward pawns"), ("passed", "Passed pawns"),
+)
+
+_BADGE_STYLE = """<style>
+  .pawn-badges .badge { display:inline-block; margin:2px 4px 2px 0; padding:3px 8px;
+    border-radius:12px; background:#eee; font-size:13px; cursor:help; }
+  .pawn-badges .side { margin-bottom:6px; }
+</style>"""
+
+
+def pawn_structure_html(board):
+    """Badges for both sides' pawn structure at `board` (a chess.Board),
+    each with its plain-English definition from PAWN_STRUCTURE_GLOSSARY on
+    hover. The one entry point study_marimo.py calls — see pawn_structure()
+    for the underlying facts. Returns an HTML string."""
+
+    def _side(label, color):
+        structure = pawn_structure(board, color)
+        chips = [
+            f'<span class="badge" title="{PAWN_STRUCTURE_GLOSSARY[name]}">'
+            f'{name} ({", ".join(chess.square_name(sq) for sq in structure[key])})</span>'
+            for key, name in _STRUCTURE_BADGE_KEYS if structure[key]
+        ]
+        islands = structure["islands"]
+        chips.append(
+            f'<span class="badge" title="{PAWN_STRUCTURE_GLOSSARY["Pawn islands"]}">'
+            f'{islands} pawn island{"s" if islands != 1 else ""}</span>'
+        )
+        return f'<div class="side"><b>{label}</b><br>{"".join(chips)}</div>'
+
+    return f'<div class="pawn-badges">{_BADGE_STYLE}{_side("White", chess.WHITE)}{_side("Black", chess.BLACK)}</div>'

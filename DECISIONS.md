@@ -1,5 +1,26 @@
 # DECISIONS.md
 
+## Top nav bar: auto-discovered via the same glob serve.py uses, current page bolded
+Status: DECIDED
+
+Implemented 2026-10-07. Every `*_marimo.py` notebook now shows a top bar linking back to the
+landing page and across to its sibling notebooks, via a new shared `nav.py` module
+(`nav_bar_html(current)`), called from each notebook's own imports cell.
+
+The bar's notebook list isn't hardcoded — it globs sibling `*_marimo.py` files the same way
+`serve.py` already does to mount them, so a future notebook (e.g. the opening-prep one on the
+Backlog) appears in the bar automatically, no edit needed. The current notebook shows as plain
+bold text, not a link to itself, so the bar is both a nav aid and a "you are here" marker.
+
+Pure static HTML (`<a href="/slug/">`), no marimo UI element — there's nothing reactive about
+cross-page navigation, so it didn't need one. Each notebook passes its own slug as the one
+hardcoded string (e.g. `nav.nav_bar_html("game")`), since that's simpler and more reliable than
+having `nav.py` infer the current page from the running notebook's own filename.
+
+Verified in an isolated container via Playwright: the current page is correctly excluded from
+its own link list on all three notebooks, clicking a sibling link navigates there and the bold
+marker moves with it, and the Home link reaches the landing page.
+
 ## Second notebook track: `study.py`/`study_marimo.py`, additive, not folded into game/collections
 Status: DECIDED
 

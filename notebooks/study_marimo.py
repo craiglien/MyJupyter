@@ -74,9 +74,11 @@ def _(mo, pgn_text, study):
 
 @app.cell
 def _(records, study):
-    # Pure python-chess, no new engine calls — see study.material_imbalance().
+    # Pure python-chess, no new engine calls — see study.material_imbalance()
+    # and study.captures_timeline().
     material_rows = study.material_imbalance(records)
-    return (material_rows,)
+    captures = study.captures_timeline(records)
+    return captures, material_rows
 
 
 @app.cell
@@ -87,10 +89,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_ply, material_rows, mo, records, set_ply, study):
-    # Clicking a point on either panel jumps the stepper there, same pattern
-    # as game_marimo.py's eval chart. The current ply is drawn back in as a
-    # dashed cursor line, so this cell depends on get_ply() too.
+def _(captures, get_ply, material_rows, mo, records, set_ply, study):
+    # Clicking a point on any of the three panels jumps the stepper there,
+    # same pattern as game_marimo.py's eval chart. The current ply is drawn
+    # back in as a dashed cursor line, so this cell depends on get_ply() too.
     def _jump(points):
         if points:
             idx = int(points[0]["x"]) - 1
@@ -98,7 +100,7 @@ def _(get_ply, material_rows, mo, records, set_ply, study):
 
     current_ply = min(get_ply(), len(records) - 1)
     study_chart = mo.ui.plotly(
-        study.study_figure(records, material_rows, current_ply=current_ply),
+        study.study_figure(records, material_rows, captures=captures, current_ply=current_ply),
         on_change=_jump,
     )
     return (study_chart,)

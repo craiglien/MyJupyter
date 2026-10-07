@@ -1,5 +1,19 @@
 # DECISIONS.md
 
+## Quick-append move box: legality checked, move numbers written by the exporter
+Status: DECIDED
+
+Implemented 2026-10-06. The box above the PGN text adds one SAN move to the end of the saved
+game. A move is checked against the final position first, so an illegal move never reaches
+the PGN. The move number is written by chess.pgn's exporter (you type only the move), so
+"5." and "5..." come out right without the typist doing it.
+
+The box works on the saved game, not the text in the editor, so unsaved edits in the editor
+aren't included; it saves the result the same way Load does.
+
+Verified in an isolated container: unit checks for legal and illegal inputs, and in a browser
+an illegal move shows the error while a legal one is added and saved.
+
 ## Landing-page notes: a hand-edited file with a self-maintained stamp
 Status: DECIDED
 

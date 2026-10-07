@@ -73,7 +73,7 @@ def _(mo):
 
 
 @app.cell
-def _(CURRENT_GAME_PATH, game_collections, get_load_status, get_pgn_text, mo, set_load_status, set_pgn_text):
+def _(CURRENT_GAME_PATH, game, game_collections, get_load_status, get_pgn_text, mo, set_load_status, set_pgn_text):
     pgn_editor = mo.ui.text_area(
         value=get_pgn_text(), label="Current game (PGN)", full_width=True
     )
@@ -99,6 +99,23 @@ def _(CURRENT_GAME_PATH, game_collections, get_load_status, get_pgn_text, mo, se
         else:
             set_load_status(lambda v: f"✓ Saved to My games: {label}")
 
+    # Quick-append: adds one move to the end of the saved game (not the text
+    # box below, which may hold unsaved edits). Legality is checked first, so
+    # a bad move never reaches the PGN.
+    append_text = mo.ui.text(label="Add a move to the end", placeholder="Nf6")
+
+    def _append(_):
+        try:
+            text = game.append_move(get_pgn_text(), append_text.value)
+        except ValueError as e:
+            set_load_status(lambda v: f"✗ {e}")
+            return
+        with open(CURRENT_GAME_PATH, "w") as f:
+            f.write(text)
+        set_pgn_text(lambda v: text)
+        set_load_status(lambda v: f"✓ Added {append_text.value.strip()} and saved.")
+
+    append_button = mo.ui.button(label="Add move", on_click=_append)
     load_button = mo.ui.button(label="Load game", on_click=_load)
     reload_button = mo.ui.button(label="↻ Reload from disk", on_click=_reload_from_disk)
     # Saved games go to data/games/my_games.pgn (gitignored) — see game_collections.py.
@@ -109,6 +126,7 @@ def _(CURRENT_GAME_PATH, game_collections, get_load_status, get_pgn_text, mo, se
 
     mo.vstack([
         mo.md("### Current game"),
+        mo.hstack([append_text, append_button], justify="start", align="end"),
         pgn_editor,
         mo.hstack([load_button, reload_button], justify="start"),
         mo.hstack([save_name, save_button], justify="start", align="end"),

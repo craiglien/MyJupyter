@@ -1,13 +1,15 @@
+import io
 import logging
 import re
 
 import chess
+import chess.pgn
 import matplotlib.pyplot as plt
 from IPython.display import HTML, display
 
 import position
 
-__ver__ = "0.8.0"
+__ver__ = "0.9.0"
 print(f"game ver {__ver__}")
 
 log = logging.getLogger("chess.game")
@@ -201,6 +203,27 @@ def eval_curve_plotly(records):
 def critical_moments(records, top_n=3):
     """The top_n plies with the largest centipawn loss."""
     return sorted(records, key=lambda r: r["loss"], reverse=True)[:top_n]
+
+
+def append_move(pgn_text, san):
+    """`pgn_text` with `san` added after the game's last move, re-exported as
+    PGN (headers, variations, and comments kept). Raises ValueError if the
+    text has no game, if `san` is empty, or if `san` isn't a legal move in the
+    final position. Pure — the notebook's quick-append box calls it."""
+    san = san.strip()
+    if not san:
+        raise ValueError("Type a move first.")
+    game = chess.pgn.read_game(io.StringIO(pgn_text))
+    if game is None:
+        raise ValueError("No game found in the PGN text.")
+    end = game.end()
+    try:
+        move = end.board().parse_san(san)
+    except ValueError:
+        raise ValueError(f"Not a legal move here: {san}")
+    end.add_variation(move)
+    exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
+    return game.accept(exporter)
 
 
 def ply_for_move(records, text):

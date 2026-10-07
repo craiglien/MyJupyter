@@ -8,8 +8,11 @@ app = marimo.App(width="full")
 def _():
     import marimo as mo
 
+    import nav
     import position
     import study
+
+    mo.Html(nav.nav_bar_html("study"))
     return mo, position, study
 
 

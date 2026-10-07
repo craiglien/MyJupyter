@@ -7,13 +7,6 @@
 (none — the "What's risky" candidate-list note is now live-verified, see `DECISIONS.md`)
 
 ## Backburner
-Marimo migration work is good enough for now — was explicitly deprioritized in favor of the
-"What's risky" feature (2026-08-24), which is now done and live-verified (2026-09-22, see
-`DECISIONS.md`). Revisiting is open again, whenever picked back up.
-
-- Return to the game side (`game.py`/`game_marimo.py`/`Game.ipynb`) — not touched in the
-  last 48h (as of 2026-08-19) while attention has been on `position.py`/`Position.ipynb`,
-  which is now working well.
 - Convert `Position.ipynb` to marimo (2026-09-18: raised in priority, not just "still
   open" — Jupyter itself is now retired, per `DECISIONS.md`, so there is currently NO
   interactive way to use `Position.ipynb`'s functionality at all until either this
@@ -21,10 +14,8 @@ Marimo migration work is good enough for now — was explicitly deprioritized in
   itself is untouched, per standing convention — only the server that could open it is
   gone.) The `Game.ipynb` autosave-clobbering risk noted here previously is moot for the
   same reason — no live Jupyter session left to autosave anything.
-- Port `show_sweep()`/`show_critical_moments()`'s eval-curve chart and auto-flagged
-  critical moments to `game_marimo.py` — both are Jupyter/`display()`-side-effect-only
-  today and were left out of the marimo notebook, which currently only covers looking at
-  one position's candidates.
+  Everything else that was on this list — returning to the game side, and porting the
+  eval-curve chart and critical moments to `game_marimo.py` — is done; see `DECISIONS.md`.
 
 ## Backlog
 1. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new

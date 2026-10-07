@@ -18,6 +18,11 @@
   eval-curve chart and critical moments to `game_marimo.py` — is done; see `DECISIONS.md`.
 
 ## Study track (new, separate notebook pair — `study.py` / `study_marimo.py`)
+Status 2026-10-07: Phases 1-5 DONE — the whole `more_chess_study.md` spec is implemented and
+verified. Phase 6 (below) stays parked, not built — it's gated on an actual caching
+bottleneck showing up in normal use, and none has. Next step is normal use and testing, not
+more building; revisit Phase 6 only if sweeps actually get slow.
+
 Started 2026-10-07, source spec is `more_chess_study.md` (a Gemini chat). A second,
 additive notebook pair — mounted at `/study` once `study_marimo.py` exists, same as any
 other `*_marimo.py` file — not a replacement for `game_marimo.py`/`collections_marimo.py`,

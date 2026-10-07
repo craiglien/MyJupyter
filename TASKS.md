@@ -55,11 +55,15 @@ Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching 
    heuristics, not formal definitions. Verified against two hand-traced FEN positions
    covering all five facts for both colors — every field matched the hand trace exactly —
    plus a doubled-pawn badge confirmed rendering in a browser.
-5. **Tactical & positional motif detection** — pins (absolute/relative), forks, skewers,
-   discovered attacks, fianchettoed bishops, open/semi-open files, outposts, king safety,
-   the Exchange imbalance. The costlier half of concept detection; do after 4 is solid.
-   Milestone: each motif type verified against at least one hand-picked example position
-   where it's unambiguously present.
+5. **Tactical & positional motif detection** — DONE 2026-10-07. Pins and skewers (absolute
+   and relative, one shared ray-scan function interpreted two ways), forks, discovered
+   attacks (the one move-dependent detector), fianchettoed bishops, open/semi-open files,
+   outposts, king safety, and the Exchange imbalance — all in `study.py`, rendered as
+   hover-glossary badges via `study.concepts_html()`. Pure `python-chess`/geometry, no engine
+   calls, documented as heuristic rather than a tactics engine. Verified against 9 hand-built
+   FEN positions (one per motif) — every one matched exactly — plus a real game position
+   showing a fork, fianchetto, pin, semi-open file, and a discovered attack simultaneously in
+   the browser.
 6. **Caching strategy review** (stretch, optional) — compare `mo.persistent_cache` against
    the existing `engine_cache.json` approach; only worth doing if caching actually becomes
    a bottleneck for this notebook, not on spec alone.

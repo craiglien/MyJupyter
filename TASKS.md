@@ -43,9 +43,11 @@ Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching 
    at the current ply. Verified: `material_imbalance()` matches a hand count for a Ruy
    Lopez bishop-for-knight exchange, and the browser shows all 5 piece-type bar traces and
    a working click-to-jump.
-3. **Captures timeline strip** — a row of Unicode piece glyphs marking the ply of every
-   capture, which player lost the piece came from in the sweep.
-   Milestone: capture markers land on the correct plies for a test game with known captures.
+3. **Captures timeline strip** — DONE 2026-10-07. `study.captures_timeline()`: a third
+   chart row with a Unicode glyph (outline = White, filled = Black) at the ply of every
+   capture, including en passant. No new engine calls. Verified: matches a hand count for a
+   Ruy Lopez exchange and a separate en-passant game, and both glyphs render on the actual
+   chart in a browser.
 4. **Pawn-structure detection** — doubled, isolated, backward, passed pawns, pawn islands.
    Pure `python-chess`, no engine calls. Shown as badges with plain-English definitions.
    Milestone: badges match a hand-verified pawn structure for 2-3 test positions.

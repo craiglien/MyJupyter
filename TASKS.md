@@ -28,11 +28,13 @@ Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching 
 `position.py` (`open_engine()`, `classify_move()`, the Stockfish cache) and `game.py`
 (`sweep_game()`, ply records) rather than re-implementing any of it in `study.py`.
 
-1. **Scaffolding** — `study.py` importing `position.py`/`game.py`'s existing functions, no
-   new analysis yet. `study_marimo.py` with a paste-a-PGN box (same convention as
-   `game_marimo.py`) that calls `game.sweep_game()` and steps through the result.
-   Milestone: open `/study`, paste a PGN, step through it — proves the plumbing before any
-   new feature is added.
+1. **Scaffolding** — DONE 2026-10-07. `study.py` (`load_game()`, a thin passthrough to
+   `game.sweep_game()`) and `study_marimo.py` (paste-a-PGN box, in-memory only — no disk
+   persistence yet, unlike `game_marimo.py`'s `current_game.pgn` — plus a First/Prev/Next/
+   Last stepper and board render). Mounted at `/study` automatically via `serve.py`.
+   Verified in an isolated container: default game renders a board, the stepper works, and
+   loading a shorter pasted game while deep into a longer one clamps the ply instead of
+   raising `IndexError`.
 2. **Colorblind dual-panel chart** — blue/orange (never red/green) eval curve, plus a
    stacked material-imbalance bar chart underneath, sharing the x-axis. Material counts
    come from the board objects `sweep_game()` already produces — no second engine pass.

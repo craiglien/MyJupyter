@@ -1,5 +1,36 @@
 # DECISIONS.md
 
+## Second notebook track: `study.py`/`study_marimo.py`, additive, not folded into game/collections
+Status: DECIDED
+
+Decided 2026-10-07. `more_chess_study.md` (an untracked Gemini chat, source spec for a richer
+study tool: colorblind dual-panel eval+material chart, a captures timeline, and heuristic
+concept/motif detection with a glossary) is being built as its own notebook pair rather than
+added to `game_marimo.py`. Reasons:
+
+- Several of its ideas overlap with what `game_marimo.py` already does (a ply stepper, an eval
+  chart) — folding it in would mean reconciling two UIs for the same job. A separate notebook
+  avoids that and keeps `game_marimo.py` exactly as it is.
+- The biggest new piece — heuristic motif detection (pins, forks, outposts, pawn structure,
+  etc.) — is substantial enough to deserve its own module rather than growing inside
+  `position.py`/`game.py`.
+- `game_marimo.py`, `collections_marimo.py`, and the landing-page notes file (`data/notes.md`)
+  are explicitly staying as-is; this is purely additive.
+
+Named `study` (`study.py` for analysis, `study_marimo.py` for the UI), matching the project's
+existing plain-functional naming (`position.py`, `game.py`, `game_collections.py`) rather than a
+thematic name, and echoing the source file's own name. No `python-chess`/stdlib collision risk,
+unlike the `gc.py`/`collections.py` cases recorded elsewhere in this file. Mounts at `/study`
+automatically once `study_marimo.py` exists — `serve.py` already mounts every `*_marimo.py` file
+it finds, no server change needed.
+
+Explicitly reuse-first: `study.py` is built on `position.py`'s `open_engine()`/`classify_move()`/
+engine cache and `game.py`'s `sweep_game()` rather than re-implementing engine invocation, PGN
+parsing, or caching. See `TASKS.md`'s "Study track" for the phase/milestone breakdown.
+
+`more_chess_study.md` stays at the repo root as the source-of-record for the spec this track is
+built from.
+
 ## Quick-append move box: legality checked, move numbers written by the exporter
 Status: DECIDED
 

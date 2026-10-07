@@ -35,11 +35,14 @@ Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching 
    Verified in an isolated container: default game renders a board, the stepper works, and
    loading a shorter pasted game while deep into a longer one clamps the ply instead of
    raising `IndexError`.
-2. **Colorblind dual-panel chart** — blue/orange (never red/green) eval curve, plus a
-   stacked material-imbalance bar chart underneath, sharing the x-axis. Material counts
-   come from the board objects `sweep_game()` already produces — no second engine pass.
-   Milestone: chart renders for a real game, material bars match a hand count for at least
-   one test game.
+2. **Colorblind dual-panel chart** — DONE 2026-10-07. `study.material_imbalance()` (pure
+   `python-chess`, reads each ply's `fen_after`, no new engine calls) and
+   `study.study_figure()` (blue/orange eval curve, never red/green, over a stacked
+   material-imbalance bar chart, five colorblind-safe piece-type hues). Click-to-jump on
+   either panel, same pattern as `game_marimo.py`'s eval chart, plus a dashed cursor line
+   at the current ply. Verified: `material_imbalance()` matches a hand count for a Ruy
+   Lopez bishop-for-knight exchange, and the browser shows all 5 piece-type bar traces and
+   a working click-to-jump.
 3. **Captures timeline strip** — a row of Unicode piece glyphs marking the ply of every
    capture, which player lost the piece came from in the sweep.
    Milestone: capture markers land on the correct plies for a test game with known captures.

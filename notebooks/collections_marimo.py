@@ -12,6 +12,7 @@ def _():
 
     import game
     import game_collections
+    import nav
     import position
 
     # Same RUN_COMMIT* env vars entrypoint.sh's startup banner already
@@ -25,7 +26,10 @@ def _():
     _commit = os.environ.get("RUN_COMMIT", "unknown")
     _subject = os.environ.get("RUN_COMMIT_SUBJECT", "unknown")
     _reltime = os.environ.get("RUN_COMMIT_RELTIME", "unknown")
-    mo.md(f"*commit `{_commit}` — {_subject} ({_reltime})*")
+    mo.vstack([
+        mo.Html(nav.nav_bar_html("collections")),
+        mo.md(f"*commit `{_commit}` — {_subject} ({_reltime})*"),
+    ])
 
     return game, game_collections, mo, position
 

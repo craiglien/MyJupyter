@@ -48,9 +48,13 @@ Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching 
    capture, including en passant. No new engine calls. Verified: matches a hand count for a
    Ruy Lopez exchange and a separate en-passant game, and both glyphs render on the actual
    chart in a browser.
-4. **Pawn-structure detection** — doubled, isolated, backward, passed pawns, pawn islands.
-   Pure `python-chess`, no engine calls. Shown as badges with plain-English definitions.
-   Milestone: badges match a hand-verified pawn structure for 2-3 test positions.
+4. **Pawn-structure detection** — DONE 2026-10-07. `study.pawn_structure()`: doubled,
+   isolated, backward, passed pawns, and pawn-island count, per side. Pure `python-chess`,
+   no engine calls. `study.pawn_structure_html()` renders badges with plain-English
+   definitions on hover (`PAWN_STRUCTURE_GLOSSARY`). Documented as the standard simplified
+   heuristics, not formal definitions. Verified against two hand-traced FEN positions
+   covering all five facts for both colors — every field matched the hand trace exactly —
+   plus a doubled-pawn badge confirmed rendering in a browser.
 5. **Tactical & positional motif detection** — pins (absolute/relative), forks, skewers,
    discovered attacks, fianchettoed bishops, open/semi-open files, outposts, king safety,
    the Exchange imbalance. The costlier half of concept detection; do after 4 is solid.

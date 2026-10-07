@@ -17,6 +17,42 @@
   Everything else that was on this list — returning to the game side, and porting the
   eval-curve chart and critical moments to `game_marimo.py` — is done; see `DECISIONS.md`.
 
+## Study track (new, separate notebook pair — `study.py` / `study_marimo.py`)
+Started 2026-10-07, source spec is `more_chess_study.md` (a Gemini chat). A second,
+additive notebook pair — mounted at `/study` once `study_marimo.py` exists, same as any
+other `*_marimo.py` file — not a replacement for `game_marimo.py`/`collections_marimo.py`,
+which keep working exactly as they do today, including the landing-page notes file. See
+`DECISIONS.md` for the naming/reuse rationale.
+
+Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching — build on
+`position.py` (`open_engine()`, `classify_move()`, the Stockfish cache) and `game.py`
+(`sweep_game()`, ply records) rather than re-implementing any of it in `study.py`.
+
+1. **Scaffolding** — `study.py` importing `position.py`/`game.py`'s existing functions, no
+   new analysis yet. `study_marimo.py` with a paste-a-PGN box (same convention as
+   `game_marimo.py`) that calls `game.sweep_game()` and steps through the result.
+   Milestone: open `/study`, paste a PGN, step through it — proves the plumbing before any
+   new feature is added.
+2. **Colorblind dual-panel chart** — blue/orange (never red/green) eval curve, plus a
+   stacked material-imbalance bar chart underneath, sharing the x-axis. Material counts
+   come from the board objects `sweep_game()` already produces — no second engine pass.
+   Milestone: chart renders for a real game, material bars match a hand count for at least
+   one test game.
+3. **Captures timeline strip** — a row of Unicode piece glyphs marking the ply of every
+   capture, which player lost the piece came from in the sweep.
+   Milestone: capture markers land on the correct plies for a test game with known captures.
+4. **Pawn-structure detection** — doubled, isolated, backward, passed pawns, pawn islands.
+   Pure `python-chess`, no engine calls. Shown as badges with plain-English definitions.
+   Milestone: badges match a hand-verified pawn structure for 2-3 test positions.
+5. **Tactical & positional motif detection** — pins (absolute/relative), forks, skewers,
+   discovered attacks, fianchettoed bishops, open/semi-open files, outposts, king safety,
+   the Exchange imbalance. The costlier half of concept detection; do after 4 is solid.
+   Milestone: each motif type verified against at least one hand-picked example position
+   where it's unambiguously present.
+6. **Caching strategy review** (stretch, optional) — compare `mo.persistent_cache` against
+   the existing `engine_cache.json` approach; only worth doing if caching actually becomes
+   a bottleneck for this notebook, not on spec alone.
+
 ## Backlog
 1. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
    `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.

@@ -73,12 +73,17 @@ Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching 
    the existing `engine_cache.json` approach; only worth doing if caching actually becomes
    a bottleneck for this notebook, not on spec alone.
 
-## Endgame studies track (design only — nothing built)
+## Endgame studies track
 Decided 2026-10-12, see `DECISIONS.md`. Content lives in the `data/endgame_studies/`
 submodule; this track is only the feature half.
 
-1. Create the `endgame_studies` repo and add it as a submodule at `data/endgame_studies/`,
-   with the first entry (Kaminer & Botvinnik 1925, with and without a4).
+1. DONE 2026-10-12. Created the `endgame_studies` repo (local-only, `~/src/endgame_studies`,
+   no remote) and added it as a submodule at `data/endgame_studies/`, with the first entry
+   (`kaminer_botvinnik_1925/`: FEN + PGN for both the +a4 and original positions, each with
+   the composer's main line and Stockfish's best defense, plus notes.md and the source
+   transcript). Verified: all lines legal and composer's lines checkmate via python-chess
+   (`chess.pgn.read_game()` round-trip), both inside and outside the container; the
+   container-side read confirms the bind mount resolves correctly.
 2. Loader for a study folder (position, solution, notes), reusing `position.py`/`game.py`.
 3. Solving flow: play the solver's side, replies from the composer's line; engine only checks.
 4. Reveal: show composer's main line and engine's best defense as separate fields.

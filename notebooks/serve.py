@@ -12,10 +12,17 @@ import marimo
 from starlette.applications import Starlette
 from starlette.responses import HTMLResponse
 from starlette.routing import Mount, Route
+from starlette.staticfiles import StaticFiles
 
 import notes
 
 NOTEBOOK_DIR = "/app"
+# Vendored JS/CSS for board_widget.py's drag-and-drop board (see
+# notebooks/vendor/chessground/VENDORED.md) — mounted at the site root, not
+# under any one notebook's /<slug> prefix, so the same absolute URL
+# (/vendor/chessground/...) resolves correctly no matter which notebook's
+# page references it.
+VENDOR_DIR = f"{NOTEBOOK_DIR}/vendor"
 # Written by entrypoint.sh at container start (see there for why /srv, not /app).
 LANDING_PAGE = "/srv/landing/index.html"
 # Your notes, shown on the landing page. Lives in ./data (gitignored), so it's
@@ -36,6 +43,7 @@ def build_app():
 
     return Starlette(routes=[
         Route("/", landing),
+        Mount("/vendor", app=StaticFiles(directory=VENDOR_DIR)),
         Mount("/", app=builder.build()),
     ])
 

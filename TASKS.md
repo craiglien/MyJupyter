@@ -88,25 +88,27 @@ each with the composer's main line and Stockfish's best defense, plus notes.md a
 source transcript). Verified: all lines legal and composer's lines checkmate via
 python-chess (`chess.pgn.read_game()` round-trip), both inside and outside the container.
 
-**Phase 2 — load & browse (not started).** New `endgame_studies.py` module +
+**Phase 2 — load & browse. DONE 2026-10-12.** New `endgame_studies.py` module +
 `endgame_studies_marimo.py` notebook.
-- List study folders via glob (`data/endgame_studies/*/`); a picker for the study, and for
-  the variant when a study has more than one position file (e.g. `kaminer_botvinnik_1925`'s
-  +a4 vs. original).
-- Render the starting position (reuse `position.py`'s `make()`/`render_board_svg()` — no new
-  engine calls) and the study's `notes.md`.
-- Milestone: `/endgame_studies` picks `kaminer_botvinnik_1925`, either variant, and shows the
-  right board + notes. Shows up automatically on the landing page and in the nav bar.
+- Study and variant pickers, listing via glob (`data/endgame_studies/*/`, `position*.fen`).
+- Renders `notes.md` and the starting position.
+- Milestone verified: `/endgame_studies` picks `kaminer_botvinnik_1925`, either variant, shows
+  the right notes; appears automatically on the landing page and in the nav bar.
 
-**Phase 3 — solving flow (not started).**
-- A move-input widget (SAN text entry, validated via python-chess) to play the solver's
-  (White's) side.
-- After each of your moves, auto-play Black's reply from the recorded composer's-line PGN.
-- A deviation the recorded line doesn't cover is reported as "off the recorded line," not
-  guessed at — no live engine call needed yet, since the PGNs already hold what's needed for
-  the two named lines.
-- Milestone: play `1.g4+ Kh4 2.Bh6! Qxh6 3.Qh2+ Kg5 4.Qd2+ Nf4 5.Qd8#` move by move on both
-  variants; board updates each ply; an illegal or unrecorded move is rejected with a message.
+**Phase 3 — solving flow. DONE 2026-10-12.** Move input ended up being mouse drag-and-drop
+(not just SAN text entry as originally planned here) — see DECISIONS.md's board-widget entry
+for why plain SAN-only turned out not to be enough on its own.
+- `board_widget.py` (new, shared — see DECISIONS.md): a drag-and-drop board. A SAN text box
+  stays alongside it as a fallback, per request — either input works.
+- After each of your moves, Black auto-replies from the recorded composer's-line PGN.
+- A deviation the recorded line doesn't cover is reported as "off the recorded line" and play
+  continues freely for both sides from there, rather than guessing at a reply or locking the
+  board.
+- Milestone verified in an isolated container via Playwright, including a real mouse-drag
+  simulation: played `1.g4+ Kh4 2.Bh6! Qxh6 3.Qh2+ Kg5 4.Qd2+ Nf4 5.Qd8#` move by move on both
+  variants to "Solved!", with the expected capture count; an unrecorded-but-legal move is
+  flagged off-script (free play still allowed); a truly illegal move is rejected with a
+  message, not applied; Reset returns to ply 0.
 
 **Phase 4 — reveal (not started).**
 - A "Reveal" control showing the composer's main line and the engine's best defense side by

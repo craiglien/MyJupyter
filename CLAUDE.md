@@ -28,7 +28,8 @@ and a locally-built Stockfish engine.
   `position.py`/`game.py`'s `display()`/`HTML`/`SVG` calls), `matplotlib` (the only other
   data/viz package actually imported anywhere — `game.py`'s `show_sweep()`), `plotly`
   (the interactive eval chart's clickable plot, `game.py`'s `eval_curve_plotly()`),
-  `httpx<0.24`, `chess`, `marimo`.
+  `httpx<0.24`, `chess`, `marimo`, `anywidget` (the Python/JS state-sync layer behind
+  `notebooks/board_widget.py`'s drag-and-drop board; see `DECISIONS.md`).
 - Stockfish 17: compiled from the vendored source at `stockfish/src` in a multi-stage
   Docker build (`stockfish-build` stage), with `ARCH` picked from `uname -m` inside that
   stage (`x86-64` or `armv8`) so the binary always matches the container's actual

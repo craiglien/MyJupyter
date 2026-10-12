@@ -1,5 +1,41 @@
 # DECISIONS.md
 
+## Drag-and-drop board: chessground via mo.ui.anywidget, vendored not CDN
+Status: DECIDED
+
+Built 2026-10-12 for the endgame studies solving flow (Phases 2-3; see TASKS.md). Nothing in
+the python-chess/marimo ecosystem ships a ready mouse-driven board, so this wraps lichess's
+`chessground` JS library (no dependencies, drag-and-drop built in, GPL-3.0 — irrelevant for
+this private, unpublished project) in a small custom `notebooks/board_widget.py`, using
+`mo.ui.anywidget` as the Python/JS state-sync bridge. python-chess stays the only move-
+legality authority; the widget just reports drags and redraws whatever FEN/destinations it's
+given.
+
+Shared infrastructure, not a replacement for existing input: `board_widget.py` is usable from
+any notebook, but `game_marimo.py`/`study_marimo.py`/`collections_marimo.py` keep their
+existing PGN/SAN input, untouched — only `endgame_studies_marimo.py` uses the board so far, by
+request ("make this widget available to everything, but only use it in this endgame").
+
+chessground's JS/CSS are vendored into `notebooks/vendor/chessground/` and served locally by
+`serve.py` at `/vendor/chessground/`, not fetched from a CDN at build or run time — this
+project needs to work with no network access at all, since it travels. All piece/board
+artwork turned out to already be embedded as base64 data URIs in chessground's own CSS, so
+vendoring was just 4 small files, no separate image assets.
+
+One real bug hit and fixed before this shipped: anywidget applies a widget's `_css` via a
+Constructable Stylesheet, and `@import` rules are rejected there (silently — no error, the
+import is just dropped) per the W3C constructable-stylesheets spec discussion. The first cut
+used `@import url(...)` for the three vendored CSS files; fixed by inlining their contents
+directly into `_css` instead.
+
+The solving flow (Phase 3) only ever follows the **composer's** recorded line for Black's
+auto-replies, never the engine's-best-defense line also stored in each study's PGN — matching
+the existing TASKS.md wording. Going off that line is reported, not guessed at, but play
+continues freely for both sides afterward rather than locking the board.
+
+Verified in an isolated container via Playwright, including a real mouse-drag simulation (not
+just the SAN fallback) all the way through `kaminer_botvinnik_1925` to "Solved!".
+
 ## Endgame studies: content in a `data/endgame_studies/` submodule, feature stays in this repo
 Status: DECIDED
 

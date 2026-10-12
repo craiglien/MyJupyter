@@ -1,5 +1,37 @@
 # DECISIONS.md
 
+## Endgame studies: content in a `data/endgame_studies/` submodule, feature stays in this repo
+Status: DECIDED
+
+Decided 2026-10-12 (design only — nothing built, no code written). Triggered by a 1925
+Kaminer & Botvinnik study (with a pawn added on a4 by NM Dane Mattson) that is now the
+"gold standard" first entry for a collection of composed endgame studies.
+
+The split:
+
+- **Content** — a plain-files git submodule, repo `endgame_studies`, mounted at
+  `data/endgame_studies/` (next to `data/collections/`; `./data` is already mounted at
+  `/data`, so no `run.sh` change). One folder per study: position and solution as PGN, a notes
+  file, and the source text. No code in the submodule. Each study carries facts, the "why"
+  (motif plus failing tries), lineage (related ideas/composers), and a source field; the
+  repo also keeps a hand-curated "to read next" list.
+- **Feature** — stays in this repo (solving flow, reveal rules, engine check), built reuse-first
+  on `position.py`/`game.py` like the study track. Not built yet; see `TASKS.md`.
+
+Named `endgame_studies`, not `studies`/`endgames`: "study" already means the
+`study.py`/`study_marimo.py` notebook track here, and "endgame" alone would also cover
+tablebase and textbook endings.
+
+Each study stores two separate fields, shown only after the solver's reveal: the **composer's
+main line** and the **engine's best defense**. They differ for the base study: with the a4
+pawn, Black's best defense is 2...Kg3 (not the composer's 2...Qxh6); without it, 2...Qxh6 is
+best but 4...Kf6 5.Qxh6+ beats the composer's 4...Nf4 5.Qd8#. Stockfish 17, ~25s searches
+(depth 28-34), longer lines not hand-verified.
+
+Open (not blocking): whether the unmodified original has the a4 pawn, and why Mattson added it
+(possibly to block ...Qa7+); Kaminer's vs Botvinnik's role; independent source for the
+attribution (currently the Mattson transcript and a ChatGPT summary only).
+
 ## Top nav bar: auto-discovered via the same glob serve.py uses, current page bolded
 Status: DECIDED
 

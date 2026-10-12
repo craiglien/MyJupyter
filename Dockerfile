@@ -80,6 +80,15 @@ RUN pip install --prefer-binary chess
 
 RUN pip install marimo
 
+# The drag-and-drop board widget (notebooks/board_widget.py, used by
+# endgame_studies_marimo.py) is a marimo mo.ui.anywidget wrapping lichess's
+# chessground JS library — anywidget is the Python/JS state-sync layer
+# marimo expects for that. chessground's own files are vendored under
+# notebooks/vendor/chessground/ (see VENDORED.md there), not fetched from a
+# CDN at build or run time — this project stays usable with no network
+# access at all, which matters since it travels.
+RUN pip install anywidget
+
 COPY --from=stockfish-build /build/src/stockfish /usr/bin/stockfish
 
 # Build-time provenance (see build.sh/DECISIONS.md) — baked in as a plain

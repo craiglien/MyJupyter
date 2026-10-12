@@ -73,6 +73,16 @@ Reuse-first throughout: no duplicate engine invocation, PGN parsing, or caching 
    the existing `engine_cache.json` approach; only worth doing if caching actually becomes
    a bottleneck for this notebook, not on spec alone.
 
+## Endgame studies track (design only — nothing built)
+Decided 2026-10-12, see `DECISIONS.md`. Content lives in the `data/endgame_studies/`
+submodule; this track is only the feature half.
+
+1. Create the `endgame_studies` repo and add it as a submodule at `data/endgame_studies/`,
+   with the first entry (Kaminer & Botvinnik 1925, with and without a4).
+2. Loader for a study folder (position, solution, notes), reusing `position.py`/`game.py`.
+3. Solving flow: play the solver's side, replies from the composer's line; engine only checks.
+4. Reveal: show composer's main line and engine's best defense as separate fields.
+
 ## Backlog
 1. Opening-prep notebook with Gemini chat (idea stage, not scoped — 2026-09-09): a new
    `opening_marimo.py`, separate from `game_marimo.py`, focused on opening exploration.

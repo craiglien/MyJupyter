@@ -22,15 +22,26 @@ _STYLE = """<style>
 </style>"""
 
 
+# Pinned last rather than sorted alphabetically with everything else —
+# it's an additional/bonus feature, not part of the core notebook set.
+# entrypoint.sh's landing-page link list follows the same convention.
+_PINNED_LAST = ("endgame_studies",)
+
+
 def nav_bar_html(current):
     """A top nav bar: a Home link back to the landing page, then every
-    sibling *_marimo.py notebook, alphabetically. `current` (the calling
-    notebook's own slug, e.g. "game") is shown as plain bold text instead
-    of a link to itself. Returns an HTML string."""
+    sibling *_marimo.py notebook, alphabetically except for _PINNED_LAST
+    entries which always go last. `current` (the calling notebook's own
+    slug, e.g. "game") is shown as plain bold text instead of a link to
+    itself. Returns an HTML string."""
     slugs = sorted(
         os.path.basename(p)[: -len("_marimo.py")]
         for p in glob.glob(f"{NOTEBOOK_DIR}/*_marimo.py")
     )
+    for slug in _PINNED_LAST:
+        if slug in slugs:
+            slugs.remove(slug)
+            slugs.append(slug)
     items = ['<a href="/">← Home</a>']
     for slug in slugs:
         if slug == current:

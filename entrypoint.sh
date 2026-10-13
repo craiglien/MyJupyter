@@ -78,6 +78,23 @@ shopt -s nullglob
 NOTEBOOKS=(/app/*_marimo.py)
 shopt -u nullglob
 
+# endgame_studies is pinned last rather than left in alphabetical order —
+# it's an additional/bonus feature, not part of the core notebook set.
+# nav.py's in-page nav bar follows the same convention.
+ENDGAME_NB=""
+OTHER_NOTEBOOKS=()
+for nb in "${NOTEBOOKS[@]}"; do
+  if [ "$(basename "$nb" _marimo.py)" = "endgame_studies" ]; then
+    ENDGAME_NB="$nb"
+  else
+    OTHER_NOTEBOOKS+=("$nb")
+  fi
+done
+NOTEBOOKS=("${OTHER_NOTEBOOKS[@]}")
+if [ -n "$ENDGAME_NB" ]; then
+  NOTEBOOKS+=("$ENDGAME_NB")
+fi
+
 if [ "${#NOTEBOOKS[@]}" -eq 0 ]; then
   echo "entrypoint: no *_marimo.py notebooks found under /app" >&2
   exit 1

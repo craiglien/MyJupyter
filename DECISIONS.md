@@ -89,6 +89,17 @@ Verified in an isolated container via Playwright: the current page is correctly 
 its own link list on all three notebooks, clicking a sibling link navigates there and the bold
 marker moves with it, and the Home link reaches the landing page.
 
+**Addendum, 2026-10-13: `endgame_studies` is pinned last, not alphabetical.** It's an
+additional/bonus feature, not part of the core notebook set, so by request it always sorts to
+the end of the list instead of competing for position with game/study/collections. This applies
+to both places a notebook list is generated: `nav.py`'s `_PINNED_LAST` tuple (the in-page nav
+bar) and `entrypoint.sh`'s matching reorder step (the landing page's link list) — the same
+pinned-slug convention in both, since they're two separate pieces of generated HTML with no
+shared code to hold one rule. `entrypoint.sh` is baked into the Docker image (not bind-mounted
+like `./notebooks`), so this needed a rebuild (`bash build.sh`) to take effect. Verified: landing
+page and the nav bar on `/game/` both render `collections, game, study, endgame_studies` in that
+order.
+
 ## Second notebook track: `study.py`/`study_marimo.py`, additive, not folded into game/collections
 Status: DECIDED
 

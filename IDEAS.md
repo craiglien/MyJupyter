@@ -141,6 +141,23 @@ Resolved by switching to `marimo run` (2026-09-24, see `DECISIONS.md`'s Phase 3 
 which auto-executes on load since it's meant to serve a finished app rather than an editing
 session — confirmed during Phase 3's own verification.
 
+## `endgame_studies.py`'s `board_at()` is unused dead code
+Added 2026-10-12, never called: `endgame_studies_marimo.py` reconstructs the board inline in
+its own cell instead of calling it. Confirmed via grep — the only match for `board_at` in
+`notebooks/` is the definition itself. Either wire the notebook to use it (removing the
+duplicate inline reconstruction) or delete the function; not urgent, just a small
+inconsistency to reconcile next time this file is touched.
+
+## Benign "missing default export" console error on every endgame_studies page load
+Noticed 2026-10-12 during `board_widget.py`'s Playwright verification: a console error
+("Anywidget module at ./@file/....js is missing a default export") appears once per session
+on `/endgame_studies/`, regardless of whether the widget is recreated or mutated in place
+(see `DECISIONS.md`'s drag-and-drop board entry). Doesn't block rendering or move input —
+confirmed the board and drag path work correctly despite it. Appears to be a stale
+virtual-file reference anywidget/marimo chases once per session rather than anything in
+`board_widget.py` itself, but this wasn't traced to a root cause. Worth a real look if it
+ever starts correlating with an actual failure, or just to quiet the console.
+
 ## Traefik (or similar) reverse proxy, to get back down to one published socket — RESOLVED without a proxy
 Resolved 2026-10-06 (see `DECISIONS.md`): a single uvicorn server running `notebooks/serve.py`
 mounts every notebook under its own path (`/game`, `/collections`) and serves the landing page at

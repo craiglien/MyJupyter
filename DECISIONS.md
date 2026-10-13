@@ -36,6 +36,26 @@ continues freely for both sides afterward rather than locking the board.
 Verified in an isolated container via Playwright, including a real mouse-drag simulation (not
 just the SAN fallback) all the way through `kaminer_botvinnik_1925` to "Solved!".
 
+**Addendum, 2026-10-13: recreate the `BoardWidget` every rerun — don't cache and mutate one
+instance.** A brand-new `board_widget.BoardWidget(...)` is constructed in
+`endgame_studies_marimo.py`'s widget cell on every single rerun, rather than caching one
+instance (e.g. in `mo.state`) and setting its `.fen`/`.dests`/`.turn_color` traits in place.
+The mutate-in-place approach was tried first, to avoid a benign recurring console error (see
+below) — it broke rendering outright (piece count: 0), so it was reverted. Recreating every
+time is correct and already covered by this entry's Playwright verification; don't "optimize"
+this back to a cached instance without re-verifying pieces actually render.
+
+**Addendum, 2026-10-13: no promotion support in the drag path.** chessground's
+`movable.events.after` callback reports only `(orig, dest)`, no promotion piece, so
+`board_widget.py` has no way to know which piece a pawn promotes to from a drag alone —
+underpromotion and promotion moves aren't supported via drag (the SAN fallback box isn't
+affected; typing `e8=Q` there works normally through `board.parse_san()`). Irrelevant for
+`kaminer_botvinnik_1925` (no promotions in either variant's solution), but would silently
+misbehave — most likely defaulting to whatever `python-chess` assumes for an ambiguous
+promotion UCI, or raising, depending on how a caller feeds `last_move` into `parse_uci()` — on
+a future study that has one. Needs a promotion-picker UI addition (e.g. a prompt after a
+pawn-to-last-rank drag) before this track takes on a study with promotions.
+
 ## Endgame studies: content in a `data/endgame_studies/` submodule, feature stays in this repo
 Status: DECIDED
 

@@ -183,6 +183,30 @@ it is stamped with the file's mtime at the next load, which is still the true ed
 Chosen over a textarea with a Save button (which would make the web page able to write to disk)
 and over OS mtime alone (which copies and checkouts change).
 
+**Addendum, 2026-10-28: structured sections/entries, for the growing links list.** The body
+was flat (one auto-linked paragraph per line) — fine for the single bare URL it started with,
+not for organizing many links by topic as they accumulate. Now supports `"## <section>"` /
+`"### <subsection>"` heading lines (e.g. Openings > Black), with every run of three
+consecutive non-blank lines underneath treated as one entry: title, link, date added.
+Rendered via a new `notes.render_entry_html()` — the "reusable cell" asked for, so every new
+entry's HTML (bold title, smaller-font link via a new `.note-link` CSS class in
+`entrypoint.sh`'s `<style>` block, then the date) stays visually consistent without
+re-deriving the markup by hand each time. A malformed entry (wrong line count, e.g. a
+forgotten date) renders as a visible warning instead of silently vanishing — hand-typed
+structured text can have mistakes, and this is cheap insurance against one going unnoticed.
+
+Considered and rejected: a separate interactive marimo notebook (new `notes_marimo.py`) with
+an "Add entry" form. The landing page is already a static page (see "Jupyter retired" and the
+one-server decisions above), and `data/notes.md` is already hand-edited directly — an
+add-entry UI would be new surface area for a problem a plain template function already
+solves. Revisit only if hand-editing the file becomes the actual friction point, not on spec
+alone.
+
+Verified in an isolated container via Playwright, against a rebuilt image (the CSS lives in
+`entrypoint.sh`, baked into the image): the Sicilian Dragon ASMR video now renders under
+Openings > Black with a bold title, the link at 13.6px vs. the title's 16px, and "Added
+2026-10-06" underneath.
+
 ## Saved games: one gitignored file, listed as the my_games collection
 Status: DECIDED
 

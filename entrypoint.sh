@@ -132,6 +132,13 @@ cat > "${LANDING_DIR}/index.html" <<HTML
   .prov { font-size: 0.85em; color: #888; margin: 0 0 1.5em; }
   section.notes { margin-top: 2.5em; border-top: 1px solid #ddd; padding-top: 0.5em; }
   section.notes p { margin: 0.5em 0; line-height: 1.4; }
+  section.notes h3 { margin: 1.2em 0 0.4em; }
+  section.notes h4 { margin: 0.8em 0 0.3em; }
+  .note-entry { margin: 0.6em 0; }
+  .note-title { font-weight: bold; margin: 0; }
+  .note-link { font-size: 0.85em; margin: 0.15em 0; }
+  .note-link a { color: inherit; }
+  .note-date { font-size: 0.8em; color: #888; margin: 0 0 0.3em; }
   .stamp { font-size: 0.85em; color: #888; }
 </style>
 </head>
